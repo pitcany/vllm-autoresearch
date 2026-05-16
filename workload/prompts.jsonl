@@ -1,0 +1,50 @@
+{"prompt": "Explain the difference between TCP and UDP in two paragraphs.", "max_tokens": 256}
+{"prompt": "Write a Python function that returns the n-th Fibonacci number using memoization.", "max_tokens": 256}
+{"prompt": "Summarize the plot of Hamlet in five sentences.", "max_tokens": 200}
+{"prompt": "What are the main causes of inflation, and how do central banks respond?", "max_tokens": 256}
+{"prompt": "Translate this sentence to Japanese: 'The weather is nice today, let's go for a walk.'", "max_tokens": 100}
+{"prompt": "List ten reasons people give for not exercising regularly, and a counterpoint to each.", "max_tokens": 400}
+{"prompt": "Compare and contrast object-oriented and functional programming paradigms.", "max_tokens": 300}
+{"prompt": "Draft a polite email declining a meeting invitation due to a scheduling conflict.", "max_tokens": 200}
+{"prompt": "What is photosynthesis? Explain it like I'm twelve.", "max_tokens": 200}
+{"prompt": "Write a short story about a lighthouse keeper who finds a message in a bottle.", "max_tokens": 500}
+{"prompt": "Implement a binary search tree in TypeScript with insert, search, and in-order traversal.", "max_tokens": 400}
+{"prompt": "What were the main provisions of the Treaty of Versailles?", "max_tokens": 300}
+{"prompt": "Explain the concept of recursion using the tower of Hanoi as an example.", "max_tokens": 300}
+{"prompt": "Suggest five dinner recipes that use chicken, rice, and one vegetable.", "max_tokens": 400}
+{"prompt": "What is the time complexity of quicksort, and when does the worst case occur?", "max_tokens": 200}
+{"prompt": "Write a haiku about autumn leaves.", "max_tokens": 60}
+{"prompt": "Explain Bayes' theorem with a medical-test example.", "max_tokens": 300}
+{"prompt": "What are the major architectural styles of Frank Lloyd Wright?", "max_tokens": 300}
+{"prompt": "Describe the steps of cellular respiration.", "max_tokens": 300}
+{"prompt": "Write a regex that matches a valid IPv4 address.", "max_tokens": 150}
+{"prompt": "Outline a 30-minute beginner yoga routine.", "max_tokens": 400}
+{"prompt": "What is the Monty Hall problem and why is the counterintuitive answer correct?", "max_tokens": 300}
+{"prompt": "Explain the differences between supervised, unsupervised, and reinforcement learning.", "max_tokens": 300}
+{"prompt": "Recommend three books for someone interested in the history of mathematics.", "max_tokens": 250}
+{"prompt": "Write SQL to find the second-highest salary in an employees table.", "max_tokens": 200}
+{"prompt": "What causes the seasons on Earth?", "max_tokens": 250}
+{"prompt": "Briefly explain what a kernel is in an operating system.", "max_tokens": 200}
+{"prompt": "Draft three opening lines for a science-fiction novel set on a generation ship.", "max_tokens": 200}
+{"prompt": "How does HTTPS protect data in transit?", "max_tokens": 300}
+{"prompt": "List the planets in our solar system and one notable feature of each.", "max_tokens": 300}
+{"prompt": "Explain dynamic programming with the coin-change problem.", "max_tokens": 350}
+{"prompt": "What is the difference between a stock and a bond from an investor's perspective?", "max_tokens": 250}
+{"prompt": "Write a job description for a senior backend engineer at a fintech startup.", "max_tokens": 400}
+{"prompt": "Summarize the key arguments in Plato's Allegory of the Cave.", "max_tokens": 300}
+{"prompt": "Explain what a deadlock is in concurrent programming and how to avoid one.", "max_tokens": 300}
+{"prompt": "Recommend an itinerary for three days in Kyoto for someone who likes temples and food.", "max_tokens": 500}
+{"prompt": "What are vector embeddings and how are they used in semantic search?", "max_tokens": 300}
+{"prompt": "Write a brief explanation of why the sky is blue, suitable for a curious adult.", "max_tokens": 250}
+{"prompt": "Compare React and Vue.js for someone choosing a frontend framework in 2025.", "max_tokens": 400}
+{"prompt": "Generate five interview questions for a data engineering role.", "max_tokens": 300}
+{"prompt": "What is the difference between AC and DC current, and why is AC used for power distribution?", "max_tokens": 300}
+{"prompt": "Explain the trolley problem and the main positions philosophers take on it.", "max_tokens": 350}
+{"prompt": "Write a brief retrospective for a software team that missed its quarterly deadline.", "max_tokens": 350}
+{"prompt": "What's the difference between mitosis and meiosis?", "max_tokens": 300}
+{"prompt": "Explain how a transformer language model attends to context.", "max_tokens": 350}
+{"prompt": "Recommend exercises to strengthen the lower back without aggravating sciatica.", "max_tokens": 350}
+{"prompt": "Describe the typical client-server lifecycle of a single web page load.", "max_tokens": 350}
+{"prompt": "What are the trade-offs between SQL and NoSQL databases?", "max_tokens": 350}
+{"prompt": "Write a short congratulatory message for a colleague who just got promoted.", "max_tokens": 100}
+{"prompt": "Explain garbage collection in a managed runtime like the JVM.", "max_tokens": 300}
