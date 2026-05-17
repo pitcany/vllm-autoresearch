@@ -187,24 +187,42 @@ def launch(
         info.command,
         stdout=log_file,
         stderr=subprocess.STDOUT,
-        preexec_fn=os.setsid,
+        preexec_fn=os.setsid,  # child becomes leader of a new group (pgid = child pid)
         env=sub_env,
     )
+    # Cache pgid synchronously — see launch_vllm.py for full rationale.
+    # tl;dr: os.getpgid(proc.pid) raises ProcessLookupError once the leader
+    # is reaped, which is exactly when teardown runs after a crash.
+    pgid = proc.pid
 
-    def _teardown():
+    def _teardown(grace_seconds: float = 30.0):
         try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-            proc.wait(timeout=30)
+            os.killpg(pgid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+
+        deadline = time.time() + grace_seconds
+        while time.time() < deadline:
+            try:
+                os.killpg(pgid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.5)
+        else:
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+        try:
+            proc.wait(timeout=5)
         except Exception:
-            try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-            except Exception:
-                pass
-        finally:
-            try:
-                log_file.close()
-            except Exception:
-                pass
+            pass
+
+        try:
+            log_file.close()
+        except Exception:
+            pass
 
     if on_spawn is not None:
         on_spawn(_teardown)

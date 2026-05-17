@@ -176,10 +176,12 @@ prefill-only TTFT data point that doesn't show up in the SLO-weighted score.
 
 ## Known issues
 
-- **Zombie vLLM workers escape teardown when run.py logs `status="crash"`.**
-  Workers rename themselves to `VLLM::Worker_TP{0,1}` after launch, which
-  evades the launcher's case-sensitive `grep vllm` cleanup. When iter 4
-  crashed mid-benchmark the workers kept holding ~30 GB on each GPU, and the
-  next backend launch (llama.cpp) immediately OOMed. Manual fix:
-  `nvidia-smi --query-compute-apps=pid` → `kill -9 <pid>`. A proper fix
-  would be to either kill by parent-pid tree or grep case-insensitively.
+- ~~Zombie vLLM workers escape teardown when run.py logs `status="crash"`.~~
+  **Fixed in `launch_vllm.py` / `launch_llama_cpp.py`** — the original
+  teardown looked up the pgid lazily via `os.getpgid(proc.pid)`, which
+  raises `ProcessLookupError` once the leader is reaped (exactly the case
+  on crash). The bare `except Exception` swallowed it and workers
+  survived. The fix caches the pgid synchronously at Popen time
+  (`pgid = proc.pid`, valid because `preexec_fn=os.setsid`), polls the
+  group with `os.killpg(pgid, 0)` to confirm it has emptied, and
+  unconditionally escalates to SIGKILL after the grace period.

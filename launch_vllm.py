@@ -216,24 +216,51 @@ def launch(
         info.command,
         stdout=log_file,
         stderr=subprocess.STDOUT,
-        preexec_fn=os.setsid,  # so we can kill the whole group later
+        preexec_fn=os.setsid,  # child becomes leader of a new group (pgid = child pid)
         env=sub_env,
     )
+    # Cache pgid synchronously: even if proc.pid is later reaped, the pgid
+    # remains valid as long as any process in the group is alive. Looking
+    # it up lazily via os.getpgid(proc.pid) raises ProcessLookupError once
+    # the leader is reaped, so workers escape teardown silently.
+    pgid = proc.pid  # preexec_fn=os.setsid → pgid == leader pid
 
-    def _teardown():
+    def _teardown(grace_seconds: float = 30.0):
+        # Stage 1: polite SIGTERM to the whole group.
         try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-            proc.wait(timeout=30)
+            os.killpg(pgid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass  # group already gone
+
+        # Stage 2: wait for the group to actually empty, escalating to
+        # SIGKILL if any process is still alive after the grace period.
+        # Signal 0 is a no-op delivery that errors with ESRCH when the
+        # target is dead — the canonical way to probe a pgid.
+        deadline = time.time() + grace_seconds
+        while time.time() < deadline:
+            try:
+                os.killpg(pgid, 0)
+            except ProcessLookupError:
+                break  # whole group reaped; clean exit
+            time.sleep(0.5)
+        else:
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+        # Best-effort reap of the direct child so it doesn't linger as
+        # <defunct>. Workers were children of the engine, not of us, so
+        # the kernel reaps them once their parent is gone.
+        try:
+            proc.wait(timeout=5)
         except Exception:
-            try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-            except Exception:
-                pass
-        finally:
-            try:
-                log_file.close()
-            except Exception:
-                pass
+            pass
+
+        try:
+            log_file.close()
+        except Exception:
+            pass
 
     if on_spawn is not None:
         on_spawn(_teardown)
