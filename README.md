@@ -7,6 +7,11 @@ Same pattern as [autoresearch](https://github.com/karpathy/autoresearch): an AI
 agent edits a config file, launches a short benchmark, measures metrics, keeps
 or discards, and repeats overnight.
 
+> **Writeup:** [BLOG.md](./BLOG.md) — what actually moves the needle when
+> serving Llama 3.3 70B on two RTX 5090s.
+> **Receipts:** [FINDINGS.md](./FINDINGS.md) — σ-quantified per-iter results
+> and noise-floor numbers.
+
 ## What's different from autoresearch
 
 |                  | autoresearch              | vllm-autoresearch                    |
