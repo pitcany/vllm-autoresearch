@@ -52,7 +52,7 @@ BACKEND: str = "vllm"
 # program.md for setup notes.  When the backend is selected, run.py refuses
 # to start if the binary or the GGUF can't be found.
 LLAMA_CPP_BIN: str = "/home/yannik/AI/llama.cpp/build/bin/llama-server"
-LLAMA_CPP_MODEL: str = ""                # set to absolute GGUF path when BACKEND="llama_cpp"
+LLAMA_CPP_MODEL: str = "/home/yannik/AI/models/store/gguf/bartowski/Llama-3.3-70B-Instruct-GGUF/Llama-3.3-70B-Instruct-Q4_K_M.gguf"
 
 LLAMA_CPP_N_GPU_LAYERS: int = 999        # 999 = offload everything we can
 # WARNING on ctx-size: llama-server pre-allocates this much KV and divides it
