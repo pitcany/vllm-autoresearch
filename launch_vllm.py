@@ -14,6 +14,7 @@ import json
 import os
 import re
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -23,6 +24,17 @@ from typing import Callable
 import requests
 
 import config
+
+
+def _port_in_use(host: str, port: int) -> bool:
+    """Return True if something is already listening on (host, port)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.5)
+        try:
+            s.connect((host, port))
+            return True
+        except (ConnectionRefusedError, socket.timeout, OSError):
+            return False
 
 
 @dataclass
@@ -161,6 +173,18 @@ def launch(startup_timeout_s: int = 900, log_path: str = "vllm.log"):
         gpu_snapshot_before=_gpu_snapshot(),
     )
     info.command = _build_command(info)
+
+    # Pre-flight: refuse to start if something already owns the port. Otherwise
+    # /health would return 200 from a stale process and we'd record startup_s=0
+    # for a server we never actually launched.
+    if _port_in_use(config.HOST, config.PORT):
+        info.startup_seconds = 0.0
+        with open(log_path, "w") as f:
+            f.write(
+                f"# PORT_BUSY: {config.HOST}:{config.PORT} is already in use. "
+                f"Kill the stale vLLM (or change config.PORT) before launching.\n"
+            )
+        return None, None, info
 
     log_file = open(log_path, "w")
     log_file.write(f"# vllm version: {info.vllm_version}\n")

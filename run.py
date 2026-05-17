@@ -15,14 +15,37 @@ from __future__ import annotations
 
 import argparse
 import json
+import signal
 import subprocess
 import sys
 import time
 from dataclasses import asdict
 from pathlib import Path
+from typing import Callable, Optional
 
 import benchmark
 import launch_vllm
+
+
+_PENDING_TEARDOWN: Optional[Callable[[], None]] = None
+
+
+def _install_signal_teardown() -> None:
+    """Tear down vLLM if we get SIGTERM/SIGINT. Otherwise the child survives
+    because the launcher puts it in its own session (preexec_fn=os.setsid)."""
+
+    def _handler(signum, _frame):
+        global _PENDING_TEARDOWN
+        if _PENDING_TEARDOWN is not None:
+            try:
+                _PENDING_TEARDOWN()
+            except Exception:
+                pass
+            _PENDING_TEARDOWN = None
+        sys.exit(128 + signum)
+
+    signal.signal(signal.SIGTERM, _handler)
+    signal.signal(signal.SIGINT, _handler)
 
 
 _RESULTS_HEADER = (
@@ -99,13 +122,18 @@ def _crash_row(startup_s: float, dropped_flags: list[str], description: str, bas
 
 
 def main() -> int:
+    global _PENDING_TEARDOWN
     parser = argparse.ArgumentParser()
     parser.add_argument("--baseline", action="store_true", help="label this run as the baseline")
     parser.add_argument("--description", type=str, default="", help="short description for results.tsv")
     args = parser.parse_args()
 
-    print(f"--- launching vLLM ({_git_short_sha()}) ---")
+    _install_signal_teardown()
+
+    print(f"--- launching vLLM ({_git_short_sha()}) ---", flush=True)
     proc, teardown, linfo = launch_vllm.launch()
+    if teardown is not None:
+        _PENDING_TEARDOWN = teardown
     if linfo.dropped_flags:
         print(f"NOTE: dropped flags not supported by installed vLLM: {linfo.dropped_flags}")
     print(f"vLLM version: {linfo.vllm_version}")
@@ -122,12 +150,13 @@ def main() -> int:
         _crash_row(linfo.startup_seconds, linfo.dropped_flags, args.description, args.baseline)
         return 1
 
-    print("vLLM ready. Running benchmark profiles…")
+    print("vLLM ready. Running benchmark profiles…", flush=True)
     try:
         report = benchmark.run()
     finally:
-        print("Tearing down vLLM…")
+        print("Tearing down vLLM…", flush=True)
         teardown()
+        _PENDING_TEARDOWN = None
         time.sleep(5)  # let VRAM settle
 
     benchmark.print_report(report)
