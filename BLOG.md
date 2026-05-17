@@ -1,5 +1,15 @@
 # What actually moves the needle when serving Llama 3.3 70B on two RTX 5090s
 
+**TL;DR.** I audited vLLM 0.20 tuning knobs for Llama 3.3 70B (AWQ) on 2× RTX 5090. Three findings:
+
+- **Only one config knob mattered**: `KV_CACHE_DTYPE = "fp8"`. Improved all four workload profiles by 7σ to 22σ. Every other plausible scheduler knob I tested was either already at its optimum (`MAX_NUM_SEQS`, `GPU_MEMORY_UTILIZATION`, `MAX_NUM_BATCHED_TOKENS`, `BLOCK_SIZE`) or actively a regression when changed.
+- **The V1 scheduler rewrite quietly removed several historically-quoted levers.** `--num-scheduler-steps` is gone; `--max-num-partial-prefills > 1` raises `NotImplementedError`; `--swap-space` and `--scheduler-delay-factor` are no-ops. A lot of public vLLM tuning advice predates V1 and won't apply.
+- **Cross-stack probes**: FP8 W8A8 weights don't fit on 2× 32 GB (70 GB raw); NVFP4 trades single-stream latency for +11% batch throughput *but* is 55× noisier run-to-run than AWQ; llama.cpp Q4_K_M at parity loses every SLO-weighted profile by 28% to 742%.
+
+Receipts (`results.tsv`, per-iter branches, σ-quantified noise floor) are in [FINDINGS.md](./FINDINGS.md).
+
+---
+
 The Blackwell GPUs in a pair of 5090s give you 64 GB total VRAM and a brand-new FP4/FP8 tensor-core path. With Llama 3.3 70B quantized to AWQ-int4, you can fit the model with KV-cache headroom, and vLLM 0.20 will serve it across the pair via tensor parallelism. The interesting question — given all of that — is which of the dozens of knobs in `vllm serve --help` actually matter.
 
 I spent a couple of evenings turning that question into measurements. Short version: **one change made a real difference, every other config knob I tested was either already at its optimum, removed in the V1 scheduler rewrite, or actively a regression.** Two of the more exotic quantization paths either crashed or only helped one workload. Here's what I learned.
