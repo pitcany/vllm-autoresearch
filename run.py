@@ -81,6 +81,40 @@ _RESULTS_HEADER = (
 )
 
 
+def _ensure_results_header(results: Path) -> None:
+    if not results.exists() or results.stat().st_size == 0:
+        results.write_text(_RESULTS_HEADER)
+        return
+    lines = results.read_text().splitlines()
+    if not lines:
+        results.write_text(_RESULTS_HEADER)
+        return
+    header = lines[0]
+    if header == _RESULTS_HEADER.rstrip("\n"):
+        return
+    if not header.startswith("commit\t"):
+        return
+
+    new_cols = _RESULTS_HEADER.rstrip("\n").split("\t")
+    old_cols = header.split("\t")
+    insert_index = None
+    if "reasoning_score" not in old_cols:
+        insert_index = new_cols.index("reasoning_score")
+
+    updated_lines = ["\t".join(new_cols)]
+    for line in lines[1:]:
+        if not line:
+            continue
+        row = line.split("\t")
+        if insert_index is not None and len(row) == len(new_cols) - 1:
+            row.insert(insert_index, "0.0")
+        if len(row) < len(new_cols):
+            row += [""] * (len(new_cols) - len(row))
+        updated_lines.append("\t".join(row))
+
+    results.write_text("\n".join(updated_lines) + "\n")
+
+
 def _git_short_sha() -> str:
     try:
         return subprocess.check_output(
@@ -106,11 +140,7 @@ def _append_results_row(
     backend: str,
 ) -> None:
     results = Path("results.tsv")
-    if not results.exists() or results.stat().st_size == 0:
-        results.write_text(_RESULTS_HEADER)
-    elif not results.read_text().startswith("commit\t"):
-        # legacy header — leave alone but warn
-        pass
+    _ensure_results_header(results)
 
     interactive = _profile_score(report, "interactive")
     coding = _profile_score(report, "coding")
@@ -137,8 +167,7 @@ def _append_results_row(
 
 def _crash_row(startup_s: float, dropped_flags: list[str], description: str, baseline: bool, backend: str) -> None:
     results = Path("results.tsv")
-    if not results.exists() or results.stat().st_size == 0:
-        results.write_text(_RESULTS_HEADER)
+    _ensure_results_header(results)
     note = description or ("dropped_flags=" + ",".join(dropped_flags) if dropped_flags else "")
     row = (
         f"{_git_short_sha()}\t{backend}\t-\t{int(baseline)}\t"

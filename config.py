@@ -21,7 +21,7 @@ GPU_MEMORY_UTILIZATION: float = 0.85   # fraction of VRAM vLLM may claim
 MAX_NUM_SEQS: int = 64                 # max concurrent sequences in the scheduler
 MAX_MODEL_LEN: int = 16384             # raised for R1: reasoning traces routinely exceed 4k output tokens
 KV_CACHE_DTYPE: str = "fp8"            # R1 iter 1: re-apply the Llama-audit champion change
-BLOCK_SIZE: int = 32                   # R1 iter 5b: test "less catastrophic with lower concurrency / longer outputs"
+BLOCK_SIZE: int = 16                   # R1 iter 1: keep pre-R1 default
 
 ENABLE_CHUNKED_PREFILL: bool = True    # interleave prefill with decode
 ENABLE_PREFIX_CACHING: bool = True     # cache shared prefixes across requests
@@ -80,12 +80,12 @@ LLAMA_CPP_EXTRA_ARGS: tuple[str, ...] = ()   # escape hatch for one-off flags
 
 # ---- locked constants (do not modify) --------------------------------------
 
-MODEL: str = "/home/yannik/AI/models/store/safetensors/casperhansen/deepseek-r1-distill-llama-70b-awq"
+MODEL: str = "casperhansen/deepseek-r1-distill-llama-70b-awq"
 QUANTIZATION: str = "awq_marlin"
 TENSOR_PARALLEL_SIZE: int = 2
 HOST: str = "127.0.0.1"
 PORT: int = 8003
-SERVED_MODEL_NAME: str = "llama-3.3-70b"
+SERVED_MODEL_NAME: str = "deepseek-r1-distill-llama-70b"
 
 # Benchmark parameters (also locked — fair-comparison invariants)
 BENCH_CONCURRENCY: int = 16            # simultaneous in-flight requests per workload
