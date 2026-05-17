@@ -27,7 +27,7 @@ ENABLE_CHUNKED_PREFILL: bool = True    # interleave prefill with decode
 ENABLE_PREFIX_CACHING: bool = True     # cache shared prefixes across requests
 
 # Scheduler / batching
-MAX_NUM_BATCHED_TOKENS: int = 8192     # max tokens per scheduler step; interacts with chunked prefill
+MAX_NUM_BATCHED_TOKENS: int = 16384    # R1 iter 2: test "decode-dominant workload tolerates bigger chunks"
 
 # ---- legacy knobs (likely no-ops on current vLLM, kept for compatibility) --
 
