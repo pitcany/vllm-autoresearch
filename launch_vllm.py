@@ -39,9 +39,10 @@ def _port_in_use(host: str, port: int) -> bool:
 
 @dataclass
 class LaunchInfo:
-    """What we record about each vLLM launch."""
+    """What we record about each server launch (vLLM or llama.cpp)."""
 
-    vllm_version: str = ""
+    backend: str = "vllm"
+    backend_version: str = ""
     command: list[str] = field(default_factory=list)
     startup_seconds: float = 0.0
     dropped_flags: list[str] = field(default_factory=list)
@@ -169,7 +170,8 @@ def launch(startup_timeout_s: int = 900, log_path: str = "vllm.log"):
     ``info`` is always populated so the caller can log what was attempted.
     """
     info = LaunchInfo(
-        vllm_version=_vllm_version(),
+        backend="vllm",
+        backend_version=_vllm_version(),
         gpu_snapshot_before=_gpu_snapshot(),
     )
     info.command = _build_command(info)
@@ -187,7 +189,7 @@ def launch(startup_timeout_s: int = 900, log_path: str = "vllm.log"):
         return None, None, info
 
     log_file = open(log_path, "w")
-    log_file.write(f"# vllm version: {info.vllm_version}\n")
+    log_file.write(f"# backend: {info.backend} {info.backend_version}\n")
     log_file.write(f"# dropped flags: {info.dropped_flags}\n")
     log_file.write(f"# gpu snapshot: {info.gpu_snapshot_before}\n")
     log_file.write(f"# command: {' '.join(info.command)}\n")

@@ -135,8 +135,8 @@ def main() -> int:
     if teardown is not None:
         _PENDING_TEARDOWN = teardown
     if linfo.dropped_flags:
-        print(f"NOTE: dropped flags not supported by installed vLLM: {linfo.dropped_flags}")
-    print(f"vLLM version: {linfo.vllm_version}")
+        print(f"NOTE: dropped flags not supported by installed {linfo.backend}: {linfo.dropped_flags}")
+    print(f"backend: {linfo.backend} {linfo.backend_version}")
     print(f"gpu_snapshot_before: {linfo.gpu_snapshot_before}")
     print(f"startup_s: {linfo.startup_seconds:.1f}")
 
