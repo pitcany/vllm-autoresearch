@@ -231,9 +231,10 @@ async def _run_profile(
         while time.perf_counter() < deadline:
             # back-pressure: only schedule when the semaphore could accept
             if sem.locked() and len(running) >= concurrency * 2:
-                done, running = await asyncio.wait(
+                done, _ = await asyncio.wait(
                     running, return_when=asyncio.FIRST_COMPLETED
                 )
+                running.difference_update(done)
                 continue
             t = asyncio.create_task(fire(i))
             running.add(t)
