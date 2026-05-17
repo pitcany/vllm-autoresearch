@@ -12,6 +12,43 @@ or discards, and repeats overnight.
 > **Receipts:** [FINDINGS.md](./FINDINGS.md) — σ-quantified per-iter results
 > and noise-floor numbers.
 
+## Plain-English recommendation
+
+If you just want to serve Llama 3.3 70B on a pair of RTX 5090s and skip the
+methodology, here's what the experiments say:
+
+**Use the defaults. Change exactly one thing.** Set `KV_CACHE_DTYPE = "fp8"`
+in `config.py` (instead of the default `"auto"`). That single change improved
+every workload profile by 1–11% — biggest gain on long-document tasks. Every
+other "obvious" optimization I tried — bigger batches, more concurrent
+sequences, more memory headroom, a different paged-attention block size —
+made things *worse*, sometimes a lot worse. The vLLM defaults are well-tuned.
+Resist the urge to twiddle.
+
+**Don't chase fancier quantization.** FP8 W8A8 weights don't fit on 2× 32 GB.
+NVFP4 weights (Blackwell-native fp4) do fit and *are* about 11% faster on
+batch-serving workloads, but make single-stream chat slower and have wildly
+higher run-to-run variance. Worth it only if your traffic is mostly batch.
+For interactive use, stay on AWQ.
+
+**Don't use llama.cpp for this.** It's a wonderful project for laptops, but
+for serving a 70B model on two real GPUs with concurrent users, vLLM is
+28–742% faster depending on the workload.
+
+**Don't trust vLLM tuning blog posts from 2023 or earlier.** vLLM was
+substantially rewritten ("V1") and many famous knobs no longer exist or have
+been turned into no-ops. If you're following someone else's guide, check
+their flags still appear in `vllm serve --help` on your installed version.
+
+**The single most useful thing this repo offers** isn't the champion config —
+it's `variance_probe.py`, which measures how much the same config naturally
+fluctuates between runs. Once you know your noise floor, most "tuning wins"
+you read about online turn out to be inside the noise.
+
+**Bottom line:** install vLLM, serve a quantized 70B model on your two
+5090s, set `KV_CACHE_DTYPE = "fp8"`, leave everything else at its default.
+That's the same setup I'd ship.
+
 ## What's different from autoresearch
 
 |                  | autoresearch              | vllm-autoresearch                    |
