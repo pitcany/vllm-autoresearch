@@ -20,7 +20,7 @@ backwards compatibility with older builds.
 GPU_MEMORY_UTILIZATION: float = 0.85   # fraction of VRAM vLLM may claim
 MAX_NUM_SEQS: int = 64                 # max concurrent sequences in the scheduler
 MAX_MODEL_LEN: int = 16384             # raised for R1: reasoning traces routinely exceed 4k output tokens
-KV_CACHE_DTYPE: str = "auto"           # R1 audit: start from baseline before re-applying iter 1's fp8 win
+KV_CACHE_DTYPE: str = "fp8"            # R1 iter 1: re-apply the Llama-audit champion change
 BLOCK_SIZE: int = 16                   # paged-attention block size (8/16/32)
 
 ENABLE_CHUNKED_PREFILL: bool = True    # interleave prefill with decode
