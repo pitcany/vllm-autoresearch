@@ -60,6 +60,17 @@ The really interesting finding wasn't the speed delta, though — it was the noi
 
 Same GGUF (Q4_K_M), `--kv-unified` (the fairer paged-attention analog), parallel=64, ctx-size=32k. Output throughput gap ranged from +28 % vLLM (interactive) to **+742 % vLLM** (long-context). The sole bright spot for llama.cpp was long-context p99 TTFT — its prefill kernel is genuinely competitive — but its decode collapsed under concurrent load (p99 inter-token: 6.2 s for llama.cpp vs 56 ms for vLLM) and killed the SLO score.
 
+## Does any of this transfer to other models? A quick R1 audit
+
+The whole study was on Llama 3.3 70B. To check whether the findings generalize, I re-ran the audit on `DeepSeek-R1-Distill-Llama-70B-AWQ` — same architecture, same AWQ-int4 quant, same author, but a reasoning-fine-tune that emits long `<think>` traces. I added a fifth `reasoning` workload profile (math/logic prompts with `max_tokens=4096`, concurrency=8) and raised `MAX_MODEL_LEN` to 16384.
+
+- **KV fp8 transferred cleanly** and was, if anything, slightly bigger: coding +0.9%, batch +2.0%, long_context +5.1%, reasoning +15.8%. All five profiles past 2σ on R1's own (very tight) noise floor.
+- **A surprise on baseline**: R1's interactive score was 0 because under default fp16 KV the model was KV-starved, p99 TTFT was 25.7 s, and the 1 s SLO zeroed the score. With fp8 KV the TTFT dropped to 0.75 s — back to Llama-level. So R1 *can* serve interactive workloads; it just needs the cache headroom.
+- **The two rejections I expected to flip on R1, didn't.** I predicted that `MAX_NUM_BATCHED_TOKENS=16384` would be less harmful on R1 (decode-dominant workload, smaller relative prefill penalty) and that `BLOCK_SIZE=32` would be less catastrophic (R1's reasoning profile uses lower concurrency than Llama's batch). Both predictions were wrong. Iter 2 regressed interactive *more* on R1 than on Llama; iter 5b crashed batch by the same 34% — because the batch profile's concurrency is set in the workload definition, not the model.
+- **One R1-specific caveat**: the reasoning profile is intrinsically noisy under these parameters (only ~8 requests per 60 s window, so reasoning σ is ~14 vs ≤1.0 on the other four). Anyone tuning reasoning-specific behavior on this stack would want a longer duration or higher concurrency for a cleaner signal.
+
+The methodology and the headline result transfer. The specific predictions about *which* rejected iters might flip on a different model did not.
+
 ## The takeaway
 
 The value of the work wasn't the one knob that mattered. It was the noise floor and the rejection rule. Once you've measured your noise floor properly — a 3-run variance probe on a frozen config — most "improvements" are obviously not improvements, and the few that are jump out as 10σ-plus signal.

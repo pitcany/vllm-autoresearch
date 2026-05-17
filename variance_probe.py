@@ -56,7 +56,7 @@ def _summarise(rows: list[dict]) -> None:
     if not rows:
         print("no rows recorded — probe failed")
         return
-    profiles = ["interactive_score", "coding_score", "batch_score", "long_context_score"]
+    profiles = ["interactive_score", "coding_score", "batch_score", "long_context_score", "reasoning_score"]
     extras = ["worst_p99_ttft_ms", "worst_p99_inter_ms", "startup_s"]
     print()
     print("=== variance probe summary ===")

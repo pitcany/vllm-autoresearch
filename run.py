@@ -75,7 +75,8 @@ def _install_signal_teardown() -> None:
 
 _RESULTS_HEADER = (
     "commit\tbackend\tconfig_hash\tbaseline\tinteractive_score\tcoding_score\t"
-    "batch_score\tlong_context_score\tworst_p99_ttft_ms\tworst_p99_inter_ms\t"
+    "batch_score\tlong_context_score\treasoning_score\t"
+    "worst_p99_ttft_ms\tworst_p99_inter_ms\t"
     "completed\terrored\ttimed_out\tstartup_s\tsynthetic\tstatus\tdescription\n"
 )
 
@@ -115,6 +116,7 @@ def _append_results_row(
     coding = _profile_score(report, "coding")
     batch_s = _profile_score(report, "batch")
     long_ctx = _profile_score(report, "long_context")
+    reasoning = _profile_score(report, "reasoning")
 
     worst_ttft = max((p.ttft_p99_ms for p in report.profiles if p.ttft_p99_ms != float("inf")), default=0.0)
     worst_inter = max((p.inter_token_p99_ms for p in report.profiles if p.inter_token_p99_ms != float("inf")), default=0.0)
@@ -124,7 +126,7 @@ def _append_results_row(
 
     row = (
         f"{_git_short_sha()}\t{backend}\t{report.config_hash}\t{int(baseline)}\t"
-        f"{interactive:.2f}\t{coding:.2f}\t{batch_s:.2f}\t{long_ctx:.2f}\t"
+        f"{interactive:.2f}\t{coding:.2f}\t{batch_s:.2f}\t{long_ctx:.2f}\t{reasoning:.2f}\t"
         f"{worst_ttft:.1f}\t{worst_inter:.1f}\t"
         f"{completed}\t{errored}\t{timed_out}\t"
         f"{startup_s:.1f}\t{int(report.synthetic)}\t{status}\t{description}\n"
@@ -140,7 +142,7 @@ def _crash_row(startup_s: float, dropped_flags: list[str], description: str, bas
     note = description or ("dropped_flags=" + ",".join(dropped_flags) if dropped_flags else "")
     row = (
         f"{_git_short_sha()}\t{backend}\t-\t{int(baseline)}\t"
-        f"0.00\t0.00\t0.00\t0.00\t0.0\t0.0\t0\t0\t0\t"
+        f"0.00\t0.00\t0.00\t0.00\t0.00\t0.0\t0.0\t0\t0\t0\t"
         f"{startup_s:.1f}\t1\tcrash\t{note}\n"
     )
     with results.open("a") as f:
@@ -172,6 +174,7 @@ def main() -> int:
         print("score_coding:        0.0")
         print("score_batch:         0.0")
         print("score_long_context:  0.0")
+        print("score_reasoning:     0.0")
         print("status:              crash")
         _crash_row(linfo.startup_seconds, linfo.dropped_flags, args.description, args.baseline, linfo.backend)
         return 1
