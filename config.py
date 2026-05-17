@@ -19,8 +19,8 @@ backwards compatibility with older builds.
 
 GPU_MEMORY_UTILIZATION: float = 0.85   # fraction of VRAM vLLM may claim
 MAX_NUM_SEQS: int = 64                 # max concurrent sequences in the scheduler
-MAX_MODEL_LEN: int = 8192              # max context window served (smaller = more KV headroom)
-KV_CACHE_DTYPE: str = "fp8"            # "auto" | "fp8" | "fp8_e5m2" | "fp8_e4m3" | … (auto = safest baseline)
+MAX_MODEL_LEN: int = 16384             # raised for R1: reasoning traces routinely exceed 4k output tokens
+KV_CACHE_DTYPE: str = "auto"           # R1 audit: start from baseline before re-applying iter 1's fp8 win
 BLOCK_SIZE: int = 16                   # paged-attention block size (8/16/32)
 
 ENABLE_CHUNKED_PREFILL: bool = True    # interleave prefill with decode
@@ -80,7 +80,7 @@ LLAMA_CPP_EXTRA_ARGS: tuple[str, ...] = ()   # escape hatch for one-off flags
 
 # ---- locked constants (do not modify) --------------------------------------
 
-MODEL: str = "casperhansen/llama-3.3-70b-instruct-awq"
+MODEL: str = "/home/yannik/AI/models/store/safetensors/casperhansen/deepseek-r1-distill-llama-70b-awq"
 QUANTIZATION: str = "awq_marlin"
 TENSOR_PARALLEL_SIZE: int = 2
 HOST: str = "127.0.0.1"
@@ -133,5 +133,16 @@ BENCH_PROFILES: tuple[dict, ...] = (
         "concurrency_override": 4,
         "slo_ttft_ms": None,
         "slo_inter_token_ms": 100,
+    },
+    {
+        # Reasoning is throughput-only — the user is waiting for the full
+        # trace, not the first token, and a 60-200 ms inter-token cadence
+        # is fine because the trace is long anyway. Concurrency kept modest
+        # because output sequences are long (up to 8k tokens) and chew KV.
+        "name": "reasoning",
+        "path": "workload/reasoning.jsonl",
+        "concurrency_override": 8,
+        "slo_ttft_ms": None,
+        "slo_inter_token_ms": None,
     },
 )
