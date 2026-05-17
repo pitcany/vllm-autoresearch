@@ -39,6 +39,36 @@ SCHEDULER_DELAY_FACTOR: float = 0.0    # removed in vLLM V1 — kept for older b
 TEMPERATURE: float = 0.0
 TOP_P: float = 1.0
 
+# ---- backend selector ------------------------------------------------------
+
+# "vllm"      → use vLLM with the MODEL/QUANTIZATION below (AWQ, GPTQ, FP8, …)
+# "llama_cpp" → use llama-server with LLAMA_CPP_MODEL (a GGUF path)
+# The benchmark hits the same OpenAI-compatible endpoint either way.
+BACKEND: str = "vllm"
+
+# ---- llama.cpp knobs (only used when BACKEND == "llama_cpp") ---------------
+#
+# llama.cpp installs and GGUF downloads are NOT managed by this repo.  See
+# program.md for setup notes.  When the backend is selected, run.py refuses
+# to start if the binary or the GGUF can't be found.
+LLAMA_CPP_BIN: str = "llama-server"      # binary name or absolute path
+LLAMA_CPP_MODEL: str = ""                # absolute path to .gguf
+
+LLAMA_CPP_N_GPU_LAYERS: int = 999        # 999 = offload everything we can
+LLAMA_CPP_CTX_SIZE: int = 8192           # context window
+LLAMA_CPP_PARALLEL: int = 64             # concurrent sequences (~ vLLM max_num_seqs)
+LLAMA_CPP_BATCH_SIZE: int = 2048         # logical batch
+LLAMA_CPP_UBATCH_SIZE: int = 512         # physical/micro batch (matters for prefill speed)
+LLAMA_CPP_TENSOR_SPLIT: str = "1,1"      # split across both 5090s
+LLAMA_CPP_MAIN_GPU: int | None = 0       # which GPU holds the KV / scratch
+LLAMA_CPP_CACHE_TYPE_K: str = "f16"      # KV-K dtype: f16 / q8_0 / q4_0 (analogue of KV_CACHE_DTYPE)
+LLAMA_CPP_CACHE_TYPE_V: str = "f16"      # KV-V dtype
+LLAMA_CPP_FLASH_ATTN: bool = True        # FlashAttention kernels
+LLAMA_CPP_CONT_BATCHING: bool = True     # continuous batching (analogue of vLLM scheduler)
+LLAMA_CPP_NO_MMAP: bool = False
+LLAMA_CPP_MLOCK: bool = False
+LLAMA_CPP_EXTRA_ARGS: tuple[str, ...] = ()   # escape hatch for one-off flags
+
 # ---- locked constants (do not modify) --------------------------------------
 
 MODEL: str = "casperhansen/llama-3.3-70b-instruct-awq"

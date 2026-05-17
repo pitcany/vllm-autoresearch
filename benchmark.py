@@ -323,6 +323,7 @@ async def _run_profile(
 
 def _config_snapshot() -> dict:
     keys = [
+        "BACKEND",
         "GPU_MEMORY_UTILIZATION", "MAX_NUM_SEQS", "MAX_MODEL_LEN",
         "KV_CACHE_DTYPE", "BLOCK_SIZE", "ENABLE_CHUNKED_PREFILL",
         "ENABLE_PREFIX_CACHING", "MAX_NUM_BATCHED_TOKENS",
@@ -331,6 +332,15 @@ def _config_snapshot() -> dict:
         "BENCH_CONCURRENCY", "BENCH_DURATION_SECONDS",
         "BENCH_SLO_INTER_TOKEN_MS", "BENCH_SLO_TTFT_MS",
     ]
+    if (config.BACKEND or "").lower() == "llama_cpp":
+        keys += [
+            "LLAMA_CPP_MODEL", "LLAMA_CPP_N_GPU_LAYERS", "LLAMA_CPP_CTX_SIZE",
+            "LLAMA_CPP_PARALLEL", "LLAMA_CPP_BATCH_SIZE", "LLAMA_CPP_UBATCH_SIZE",
+            "LLAMA_CPP_TENSOR_SPLIT", "LLAMA_CPP_MAIN_GPU",
+            "LLAMA_CPP_CACHE_TYPE_K", "LLAMA_CPP_CACHE_TYPE_V",
+            "LLAMA_CPP_FLASH_ATTN", "LLAMA_CPP_CONT_BATCHING",
+            "LLAMA_CPP_NO_MMAP", "LLAMA_CPP_MLOCK", "LLAMA_CPP_EXTRA_ARGS",
+        ]
     snap = {k: getattr(config, k) for k in keys}
     # Profile-level SLO overrides materially change the score; include them.
     snap["BENCH_PROFILES"] = [

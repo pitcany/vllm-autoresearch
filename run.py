@@ -24,7 +24,25 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import benchmark
+import config
+import launch_llama_cpp
 import launch_vllm
+
+
+def _launch_for_backend():
+    """Dispatch to the configured backend.  Returns (proc, teardown, info)."""
+    name = (config.BACKEND or "vllm").lower()
+    if name == "vllm":
+        return launch_vllm.launch()
+    if name == "llama_cpp":
+        return launch_llama_cpp.launch()
+    raise ValueError(
+        f"Unknown BACKEND={config.BACKEND!r}; expected 'vllm' or 'llama_cpp'"
+    )
+
+
+def _log_path_for_backend() -> str:
+    return "llama_cpp.log" if (config.BACKEND or "").lower() == "llama_cpp" else "vllm.log"
 
 
 _PENDING_TEARDOWN: Optional[Callable[[], None]] = None
@@ -49,7 +67,7 @@ def _install_signal_teardown() -> None:
 
 
 _RESULTS_HEADER = (
-    "commit\tconfig_hash\tbaseline\tinteractive_score\tcoding_score\t"
+    "commit\tbackend\tconfig_hash\tbaseline\tinteractive_score\tcoding_score\t"
     "batch_score\tlong_context_score\tworst_p99_ttft_ms\tworst_p99_inter_ms\t"
     "completed\terrored\ttimed_out\tstartup_s\tsynthetic\tstatus\tdescription\n"
 )
@@ -77,6 +95,7 @@ def _append_results_row(
     status: str,
     description: str,
     baseline: bool,
+    backend: str,
 ) -> None:
     results = Path("results.tsv")
     if not results.exists() or results.stat().st_size == 0:
@@ -97,7 +116,7 @@ def _append_results_row(
     timed_out = sum(p.timed_out for p in report.profiles)
 
     row = (
-        f"{_git_short_sha()}\t{report.config_hash}\t{int(baseline)}\t"
+        f"{_git_short_sha()}\t{backend}\t{report.config_hash}\t{int(baseline)}\t"
         f"{interactive:.2f}\t{coding:.2f}\t{batch_s:.2f}\t{long_ctx:.2f}\t"
         f"{worst_ttft:.1f}\t{worst_inter:.1f}\t"
         f"{completed}\t{errored}\t{timed_out}\t"
@@ -107,13 +126,13 @@ def _append_results_row(
         f.write(row)
 
 
-def _crash_row(startup_s: float, dropped_flags: list[str], description: str, baseline: bool) -> None:
+def _crash_row(startup_s: float, dropped_flags: list[str], description: str, baseline: bool, backend: str) -> None:
     results = Path("results.tsv")
     if not results.exists() or results.stat().st_size == 0:
         results.write_text(_RESULTS_HEADER)
     note = description or ("dropped_flags=" + ",".join(dropped_flags) if dropped_flags else "")
     row = (
-        f"{_git_short_sha()}\t-\t{int(baseline)}\t"
+        f"{_git_short_sha()}\t{backend}\t-\t{int(baseline)}\t"
         f"0.00\t0.00\t0.00\t0.00\t0.0\t0.0\t0\t0\t0\t"
         f"{startup_s:.1f}\t1\tcrash\t{note}\n"
     )
@@ -130,8 +149,8 @@ def main() -> int:
 
     _install_signal_teardown()
 
-    print(f"--- launching vLLM ({_git_short_sha()}) ---", flush=True)
-    proc, teardown, linfo = launch_vllm.launch()
+    print(f"--- launching {config.BACKEND} ({_git_short_sha()}) ---", flush=True)
+    proc, teardown, linfo = _launch_for_backend()
     if teardown is not None:
         _PENDING_TEARDOWN = teardown
     if linfo.dropped_flags:
@@ -141,20 +160,20 @@ def main() -> int:
     print(f"startup_s: {linfo.startup_seconds:.1f}")
 
     if proc is None:
-        print("vLLM failed to start (OOM, config error, or timeout). See vllm.log.")
+        print(f"{linfo.backend} failed to start (OOM, config error, or timeout). See {_log_path_for_backend()}.")
         print("score_interactive:   0.0")
         print("score_coding:        0.0")
         print("score_batch:         0.0")
         print("score_long_context:  0.0")
         print("status:              crash")
-        _crash_row(linfo.startup_seconds, linfo.dropped_flags, args.description, args.baseline)
+        _crash_row(linfo.startup_seconds, linfo.dropped_flags, args.description, args.baseline, linfo.backend)
         return 1
 
-    print("vLLM ready. Running benchmark profiles…", flush=True)
+    print(f"{linfo.backend} ready. Running benchmark profiles…", flush=True)
     try:
         report = benchmark.run()
     finally:
-        print("Tearing down vLLM…", flush=True)
+        print(f"Tearing down {linfo.backend}…", flush=True)
         teardown()
         _PENDING_TEARDOWN = None
         time.sleep(5)  # let VRAM settle
@@ -170,10 +189,11 @@ def main() -> int:
     elif errored > 0.10 * (completed + errored):
         status = "crash"
 
-    _append_results_row(report, linfo.startup_seconds, status, args.description, args.baseline)
+    _append_results_row(report, linfo.startup_seconds, status, args.description, args.baseline, linfo.backend)
 
     # Always emit a one-line summary for greppable log parsing.
     summary = {
+        "backend": linfo.backend,
         "config_hash": report.config_hash,
         "scores": {p.name: p.score for p in report.profiles},
         "status": status,
