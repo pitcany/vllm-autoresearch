@@ -39,14 +39,69 @@ keep/discard, repeat.  It does **not** edit anything else.
 Each iteration runs as:
 
 ```bash
-conda run -n vllm-serve python run.py --description "raised gpu_mem to 0.90" > run.log 2>&1
+/home/yannik/miniconda3/envs/vllm-serve/bin/python -u run.py \
+    --description "raised gpu_mem to 0.90" > run.log 2>&1
 ```
 
-This launches vLLM (~2-3 min for the 70B AWQ model), runs **four** workload
-profiles back-to-back (interactive, coding, batch, long_context — ~60 s each),
-tears down vLLM, prints metrics, and appends a row to `results.tsv`.
+This launches the configured backend (~2-3 min for the 70B model the first
+time, faster once weights are cached), runs **four** workload profiles
+back-to-back (interactive, coding, batch, long_context — ~60 s each), tears
+the server down, prints metrics, and appends a row to `results.tsv`.
 
 Total per iteration: **~6-10 min**.
+
+> **Why not `conda run`?**  `conda run --no-capture-output` still buffers
+> stdout in non-TTY contexts — `run.log` stays empty for minutes even
+> though the run is progressing.  Invoke the env's `python` directly to
+> get real-time progress.
+
+## Backends
+
+Two backends are supported, both speaking the same OpenAI `/v1/completions`
+shape so the same workloads, scoring, and `results.tsv` schema apply to both.
+
+| `config.BACKEND` | model format | launcher          | log file           |
+|------------------|--------------|-------------------|--------------------|
+| `"vllm"`         | HF (AWQ/GPTQ/FP8) | `launch_vllm.py`     | `vllm.log`         |
+| `"llama_cpp"`    | GGUF          | `launch_llama_cpp.py`| `llama_cpp.log`    |
+
+The `backend` column in `results.tsv` records which one produced each row, so
+GGUF rows and AWQ rows can be compared side-by-side.
+
+### llama.cpp setup (one-time)
+
+The repo does **not** install llama.cpp or download GGUFs.
+
+1.  Build `llama-server` with CUDA on this box, e.g.:
+    ```bash
+    git clone https://github.com/ggerganov/llama.cpp ~/llama.cpp
+    cd ~/llama.cpp && cmake -B build -DGGML_CUDA=on && cmake --build build -j
+    ```
+    Either symlink the binary onto `PATH` or set `config.LLAMA_CPP_BIN` to
+    its absolute path (e.g. `/home/yannik/llama.cpp/build/bin/llama-server`).
+
+2.  Download a Llama-3.3-70B-Instruct GGUF whose bits-per-weight roughly
+    match the AWQ baseline (Q4_K_M ≈ 4.8 bpw vs AWQ 4 bpw), e.g.:
+    ```
+    bartowski/Llama-3.3-70B-Instruct-GGUF  →  Llama-3.3-70B-Instruct-Q4_K_M.gguf
+    ```
+    Set `config.LLAMA_CPP_MODEL` to its absolute path.
+
+3.  Set `config.BACKEND = "llama_cpp"` and run as usual.  The launcher
+    refuses to start with a clear message if the binary or model path is
+    missing — no silent fallback.
+
+### Cross-stack comparison caveats
+
+* **Bits-per-weight differs.**  AWQ is 4-bit; Q4_K_M is ~4.8-bit.  Q4_0
+  (~4.5 bpw) is closer to AWQ but generally lower quality than Q4_K_M.
+* **Tokenizer is shared** (Llama-3 BPE) — token counts compare cleanly.
+* **Tensor parallel differs.**  vLLM does true tensor parallel; llama.cpp
+  splits layers across GPUs (pipeline-ish).  Don't expect identical
+  scaling on the same hardware.
+* **Quality is not measured here** — only throughput and latency.  If two
+  backends produce wildly different scores, run a few prompts through both
+  and eyeball the outputs before declaring a winner.
 
 ### What you CAN edit
 
@@ -73,8 +128,9 @@ iterations sweeping these.
 
 - Locked constants in `config.py` (`MODEL`, `QUANTIZATION`,
   `TENSOR_PARALLEL_SIZE`, `HOST`, `PORT`, `SERVED_MODEL_NAME`, all `BENCH_*`).
-- `launch_vllm.py`, `benchmark.py`, `run.py`, `workload/*.jsonl`.
-- The vLLM version or any installed package.
+- `launch_vllm.py`, `launch_llama_cpp.py`, `benchmark.py`, `run.py`,
+  `workload/*.jsonl`.
+- The vLLM or llama.cpp version, or any installed package.
 
 ### Unsafe configurations (skip these, they will OOM or hang)
 
