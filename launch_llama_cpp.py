@@ -101,8 +101,9 @@ def _build_command(info: "launch_vllm.LaunchInfo", binary: str) -> list[str]:
         base += ["--tensor-split", config.LLAMA_CPP_TENSOR_SPLIT]
     if config.LLAMA_CPP_MAIN_GPU is not None:
         base += ["--main-gpu", str(config.LLAMA_CPP_MAIN_GPU)]
-    if config.LLAMA_CPP_FLASH_ATTN:
-        base.append("--flash-attn")
+    # Recent llama-server changed --flash-attn to take a value (on|off|auto).
+    # Always pass the explicit value so the next flag isn't consumed as its arg.
+    base += ["--flash-attn", "on" if config.LLAMA_CPP_FLASH_ATTN else "off"]
     if config.LLAMA_CPP_CONT_BATCHING:
         base.append("--cont-batching")
     if config.LLAMA_CPP_NO_MMAP:

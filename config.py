@@ -51,12 +51,16 @@ BACKEND: str = "vllm"
 # llama.cpp installs and GGUF downloads are NOT managed by this repo.  See
 # program.md for setup notes.  When the backend is selected, run.py refuses
 # to start if the binary or the GGUF can't be found.
-LLAMA_CPP_BIN: str = "llama-server"      # binary name or absolute path
-LLAMA_CPP_MODEL: str = ""                # absolute path to .gguf
+LLAMA_CPP_BIN: str = "/home/yannik/AI/llama.cpp/build/bin/llama-server"
+LLAMA_CPP_MODEL: str = ""                # set to absolute GGUF path when BACKEND="llama_cpp"
 
 LLAMA_CPP_N_GPU_LAYERS: int = 999        # 999 = offload everything we can
-LLAMA_CPP_CTX_SIZE: int = 8192           # context window
-LLAMA_CPP_PARALLEL: int = 64             # concurrent sequences (~ vLLM max_num_seqs)
+# WARNING on ctx-size: llama-server pre-allocates this much KV and divides it
+# across `--parallel` slots.  Per-slot context = LLAMA_CPP_CTX_SIZE //
+# LLAMA_CPP_PARALLEL.  Set CTX_SIZE >= MAX_MODEL_LEN * PARALLEL or longer
+# prompts will hit HTTP 400.  vLLM's paged attention has no equivalent limit.
+LLAMA_CPP_CTX_SIZE: int = 32768          # total KV budget across all slots
+LLAMA_CPP_PARALLEL: int = 4              # concurrent sequences; per-slot ctx = CTX_SIZE / PARALLEL
 LLAMA_CPP_BATCH_SIZE: int = 2048         # logical batch
 LLAMA_CPP_UBATCH_SIZE: int = 512         # physical/micro batch (matters for prefill speed)
 LLAMA_CPP_TENSOR_SPLIT: str = "1,1"      # split across both 5090s
