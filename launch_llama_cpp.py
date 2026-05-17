@@ -123,12 +123,19 @@ def _health_url() -> str:
     return f"http://{config.HOST}:{config.PORT}/health"
 
 
-def launch(startup_timeout_s: int = 900, log_path: str = "llama_cpp.log"):
+def launch(
+    startup_timeout_s: int = 900,
+    log_path: str = "llama_cpp.log",
+    on_spawn: Callable[[Callable[[], None]], None] | None = None,
+):
     """Spawn llama-server and block until /health returns 200.
 
     Same return shape as ``launch_vllm.launch()``:
     ``(proc, teardown_fn, info)`` on success, ``(None, None, info)`` on
     failure.
+
+    ``on_spawn`` is invoked with a teardown closure as soon as Popen returns,
+    so a SIGTERM during startup still cleans up the spawned server.
     """
     binary = shutil.which(config.LLAMA_CPP_BIN) or config.LLAMA_CPP_BIN
     info = launch_vllm.LaunchInfo(
@@ -170,13 +177,37 @@ def launch(startup_timeout_s: int = 900, log_path: str = "llama_cpp.log"):
     log_file.write(f"# command: {' '.join(info.command)}\n")
     log_file.flush()
 
+    # Prepend the env's bin dir to PATH for any build tools the server needs.
+    env_bin = os.path.dirname(sys.executable)
+    sub_env = dict(os.environ)
+    sub_env["PATH"] = env_bin + os.pathsep + sub_env.get("PATH", "")
+
     t0 = time.time()
     proc = subprocess.Popen(
         info.command,
         stdout=log_file,
         stderr=subprocess.STDOUT,
         preexec_fn=os.setsid,
+        env=sub_env,
     )
+
+    def _teardown():
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            proc.wait(timeout=30)
+        except Exception:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except Exception:
+                pass
+        finally:
+            try:
+                log_file.close()
+            except Exception:
+                pass
+
+    if on_spawn is not None:
+        on_spawn(_teardown)
 
     deadline = time.time() + startup_timeout_s
     while time.time() < deadline:
@@ -188,27 +219,11 @@ def launch(startup_timeout_s: int = 900, log_path: str = "llama_cpp.log"):
             r = requests.get(_health_url(), timeout=2)
             if r.status_code == 200:
                 info.startup_seconds = time.time() - t0
-
-                def teardown():
-                    try:
-                        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-                        proc.wait(timeout=30)
-                    except Exception:
-                        try:
-                            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                        except Exception:
-                            pass
-                    finally:
-                        log_file.close()
-                return proc, teardown, info
+                return proc, _teardown, info
         except requests.RequestException:
             pass
         time.sleep(2)
 
-    try:
-        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-    except Exception:
-        pass
+    _teardown()
     info.startup_seconds = time.time() - t0
-    log_file.close()
     return None, None, info

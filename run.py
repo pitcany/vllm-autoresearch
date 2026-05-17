@@ -29,13 +29,20 @@ import launch_llama_cpp
 import launch_vllm
 
 
+def _register_early_teardown(td: Callable[[], None]) -> None:
+    """Make teardown reachable to the signal handler the moment Popen succeeds,
+    so SIGTERM during startup (e.g. a slow model load) still kills the server."""
+    global _PENDING_TEARDOWN
+    _PENDING_TEARDOWN = td
+
+
 def _launch_for_backend():
     """Dispatch to the configured backend.  Returns (proc, teardown, info)."""
     name = (config.BACKEND or "vllm").lower()
     if name == "vllm":
-        return launch_vllm.launch()
+        return launch_vllm.launch(on_spawn=_register_early_teardown)
     if name == "llama_cpp":
-        return launch_llama_cpp.launch()
+        return launch_llama_cpp.launch(on_spawn=_register_early_teardown)
     raise ValueError(
         f"Unknown BACKEND={config.BACKEND!r}; expected 'vllm' or 'llama_cpp'"
     )
