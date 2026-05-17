@@ -274,6 +274,48 @@ tuned heavily in future work.
   within ~1% of Llama's at iter 1, suggesting that scheduler-level tuning
   results generalize across same-architecture model variants.
 
+### Side experiment: `MAX_MODEL_LEN` is not a free per-request cap (commit `4b7682e`)
+
+Triggered by a downstream consolidation attempt on the `gpu-models`
+presets (`~/AI/src/gpu_models/presets/{llama-3.3-70b,deepseek-r1-70b}.yaml`),
+where two variants exist per model differing only in `max_model_len`
+(32k base, 64k extended). With fp8 KV now the default on both, the only
+remaining difference is the cap — so we tested whether the variants could
+be collapsed to a single 64k entry.
+
+Mechanism argument said yes: vLLM V1 paged attention allocates KV blocks
+on demand, and `max_model_len` should just gate per-request length, not
+shrink the pool. Measurement said no.
+
+Run on R1 + fp8 KV, only `MAX_MODEL_LEN` changed (16384 → 65536):
+
+| profile      | iter 1 mean ± σ | @65k    | Δ raw    | σ-units   |
+|--------------|-----------------|---------|----------|-----------|
+| interactive  | 349.10 ± 0.03   | 332.30  | −16.80   | **−560σ** |
+| coding       | 332.52 ± 0.09   | 330.20  | −2.32    | −26σ      |
+| batch        | 329.93 ± 0.47   | **217.60** | **−112.33** | **−239σ** |
+| long_context | 104.32 ± 0.84   | 104.53  | +0.21    | flat      |
+| reasoning    | 220.31 ± 14.01  | 214.86  | −5.45    | flat (noise) |
+
+Batch req/s collapsed from 21.1 to 13.9 (−34%) — same shape and magnitude
+as the `BLOCK_SIZE=32` catastrophe in iter 5b. Completed requests dropped
+1521 → 882. p99 ITL doubled. Startup_s went 74 → 118 as a one-time cost
+(more cudagraph shapes / longer flashinfer JIT).
+
+Probable mechanism: vLLM V1 reserves KV / CUDA graph capacity per
+in-flight request proportional to `max_model_len`, regardless of the
+request's actual length. At concurrency=64, that per-slot reservation
+multiplies into a significant reduction in effective concurrent slots
+the scheduler will admit before pre-empting. So `max_model_len` behaves
+as a *worst-case-per-slot reservation*, not a per-request cap.
+
+This is the third "predicted neutral, measured catastrophic" case in
+the audit (after R1 iter 2 and iter 5b). The lesson keeps repeating:
+arguing from documented mechanism without measurement is unreliable.
+The downstream consolidation was abandoned and the gpu-models presets
+now ship two variants (32k base, 64k extended) with the tradeoff
+documented in the YAML header comments.
+
 ## Known issues
 
 - ~~Zombie vLLM workers escape teardown when run.py logs `status="crash"`.~~
