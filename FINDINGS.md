@@ -32,11 +32,21 @@ All deltas are 7–22σ — firm signal.
 | `2c60e07` | `MAX_NUM_BATCHED_TOKENS = 16384`    | batch +5.9σ, interactive **−7.2σ** ✗ |
 | `60ac980` | `MAX_NUM_SEQS = 128`                | interactive **−13.8σ**, batch **−5.5σ** ✗ |
 | `e789ef7` | `GPU_MEMORY_UTILIZATION = 0.92`     | first three profiles +2.3 to +6.8σ, **long_context −126σ catastrophic crash** ✗ |
+| `a137ba9` | `MAX_NUM_PARTIAL_PREFILLS = 4`      | vLLM 0.20 V1 raises `NotImplementedError: Concurrent Partial Prefill is not supported` — flag exists but feature was not ported from V0 ✗ |
+| `30fe7be` | `BLOCK_SIZE = 32` (up from 16)      | interactive **−54σ**, batch **−1441σ** (req/s 22.0 → 14.3), long_context flat ✗ |
 
 Larger prefill chunks improved batch throughput at the cost of single-stream
 inter-token latency. The 64-sequence concurrency ceiling was not the
 bottleneck; raising it hurt both latency and throughput, indicating effective
 batch is gated upstream (chunked-prefill / decode kernel sweet spot).
+
+Iter 5b is the most surprising failure: block size *is* a high-leverage knob
+(±35% on batch throughput), but the vLLM default of 16 already sits at the
+optimum for our workload's prompt-size distribution. Moving to 32 cuts
+page-table overhead but explodes internal fragmentation — with 64 concurrent
+short-prompt batch requests, each one claiming a 32-slot block wastes more
+KV than 16-slot blocks did, so usable concurrency drops and the scheduler
+pre-empts. Moving to 8 would do the opposite. The default isn't arbitrary.
 
 Iter 4 is the most informative failure: bumping `GPU_MEMORY_UTILIZATION` from
 0.85 → 0.92 *did* lift interactive/coding/batch by small but real margins
@@ -147,6 +157,24 @@ further llama.cpp tuning low-priority.
 **Conclusion: no reason to consider llama.cpp on this stack.** vLLM
 AWQ + KV fp8 dominates GGUF Q4_K_M on every metric except a single
 prefill-only TTFT data point that doesn't show up in the SLO-weighted score.
+
+## What V1 doesn't expose
+
+A separate finding worth surfacing: many of the historically-quoted vLLM
+tuning levers do not exist in vLLM 0.20's V1 scheduler. Discovered during
+iter 5: `--num-scheduler-steps` (multi-step decode, a big V0-era throughput
+knob) has been removed entirely; `--max-num-partial-prefills > 1` is still
+accepted as an argument but raises `NotImplementedError` on startup. Other
+V0 knobs like `--swap-space` and `--scheduler-delay-factor` are silently
+dropped by our launcher's version probe.
+
+The realistic V1 tuning surface for our workload class is roughly:
+`GPU_MEMORY_UTILIZATION`, `MAX_NUM_SEQS`, `MAX_MODEL_LEN`, `KV_CACHE_DTYPE`,
+`BLOCK_SIZE`, `MAX_NUM_BATCHED_TOKENS`, and the chunked-prefill /
+prefix-caching toggles. Five of those seven were tested; of those, the
+defaults are already optimal on four (`MAX_NUM_SEQS`, `GPU_MEMORY_UTILIZATION`,
+`MAX_NUM_BATCHED_TOKENS`, `BLOCK_SIZE`) and only one (`KV_CACHE_DTYPE`)
+moved the needle.
 
 ## Recommendations
 
