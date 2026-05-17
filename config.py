@@ -21,13 +21,13 @@ GPU_MEMORY_UTILIZATION: float = 0.85   # fraction of VRAM vLLM may claim
 MAX_NUM_SEQS: int = 64                 # max concurrent sequences in the scheduler
 MAX_MODEL_LEN: int = 16384             # raised for R1: reasoning traces routinely exceed 4k output tokens
 KV_CACHE_DTYPE: str = "fp8"            # R1 iter 1: re-apply the Llama-audit champion change
-BLOCK_SIZE: int = 16                   # paged-attention block size (8/16/32)
+BLOCK_SIZE: int = 32                   # R1 iter 5b: test "less catastrophic with lower concurrency / longer outputs"
 
 ENABLE_CHUNKED_PREFILL: bool = True    # interleave prefill with decode
 ENABLE_PREFIX_CACHING: bool = True     # cache shared prefixes across requests
 
 # Scheduler / batching
-MAX_NUM_BATCHED_TOKENS: int = 16384    # R1 iter 2: test "decode-dominant workload tolerates bigger chunks"
+MAX_NUM_BATCHED_TOKENS: int = 8192     # revert iter 2 (still hurt interactive on R1)
 
 # ---- legacy knobs (likely no-ops on current vLLM, kept for compatibility) --
 
