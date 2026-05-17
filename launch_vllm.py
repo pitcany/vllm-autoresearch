@@ -239,6 +239,7 @@ def launch(
         deadline = time.time() + grace_seconds
         while time.time() < deadline:
             try:
+                proc.poll()
                 os.killpg(pgid, 0)
             except ProcessLookupError:
                 break  # whole group reaped; clean exit
