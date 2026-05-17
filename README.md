@@ -14,22 +14,34 @@ or discards, and repeats overnight.
 
 ## Plain-English recommendation
 
-If you just want to serve Llama 3.3 70B on a pair of RTX 5090s and skip the
-methodology, here's what the experiments say:
+If you just want to serve a 70B model on a pair of RTX 5090s and skip the
+methodology, here's what the experiments say. Tested on both Llama 3.3 70B
+and DeepSeek-R1-Distill-Llama-70B (AWQ-int4 for both).
 
-**Use the defaults. Change exactly one thing.** Set `KV_CACHE_DTYPE = "fp8"`
-in `config.py` (instead of the default `"auto"`). That single change improved
-every workload profile by 1–11% — biggest gain on long-document tasks. Every
-other "obvious" optimization I tried — bigger batches, more concurrent
-sequences, more memory headroom, a different paged-attention block size —
-made things *worse*, sometimes a lot worse. The vLLM defaults are well-tuned.
+**Use the defaults. Set one thing.** In `config.py`, change
+`KV_CACHE_DTYPE` from `"auto"` to `"fp8"`. That single change improved every
+workload profile on both models — by 1–11% on Llama 3.3, and on R1 it lifted
+the reasoning-trace workload by about 16% (the biggest single-knob gain
+anywhere in the audit). The mechanism is the same on both: halving the
+attention-cache memory frees room for more concurrent requests and longer
+outputs.
+
+Every other "obvious" optimization I tried — bigger batches, more concurrent
+sequences, more memory headroom, a different paged-attention block size — was
+worse on both models. The vLLM V1 defaults are well-tuned across them.
 Resist the urge to twiddle.
 
-**Don't chase fancier quantization.** FP8 W8A8 weights don't fit on 2× 32 GB.
-NVFP4 weights (Blackwell-native fp4) do fit and *are* about 11% faster on
-batch-serving workloads, but make single-stream chat slower and have wildly
-higher run-to-run variance. Worth it only if your traffic is mostly batch.
-For interactive use, stay on AWQ.
+**For R1 specifically:** also raise `MAX_MODEL_LEN` from 8192 to 16384. R1
+emits long `<think>...</think>` reasoning traces that need the room. Without
+this, the model is KV-starved, queue lengths blow up, and what should be a
+700 ms first-token latency becomes 25 seconds. (Llama 3.3 doesn't need this
+since chat completions stay under 4k tokens.)
+
+**Don't chase fancier quantization.** FP8 W8A8 weights don't fit on 2× 32 GB
+(70 GB raw vs 64 GB total VRAM). NVFP4 (Blackwell-native fp4) does fit and is
+about 11% faster on batch-serving workloads, but is slower on interactive
+chat and is 55× noisier run-to-run than AWQ. Worth it only if your traffic
+is mostly batch. For interactive or reasoning use, stay on AWQ.
 
 **Don't use llama.cpp for this.** It's a wonderful project for laptops, but
 for serving a 70B model on two real GPUs with concurrent users, vLLM is
@@ -40,14 +52,21 @@ substantially rewritten ("V1") and many famous knobs no longer exist or have
 been turned into no-ops. If you're following someone else's guide, check
 their flags still appear in `vllm serve --help` on your installed version.
 
+**Don't reason about which knobs will flip on a different model.** I made
+two predictions about which rejected tuning iterations might behave
+differently on R1 ("decode-dominant workload", "lower concurrency"). Both
+were wrong when measured. The methodology — variance probe + Pareto rule —
+transfers across same-architecture models; specific "this should be safer
+because X" reasoning doesn't.
+
 **The single most useful thing this repo offers** isn't the champion config —
 it's `variance_probe.py`, which measures how much the same config naturally
 fluctuates between runs. Once you know your noise floor, most "tuning wins"
 you read about online turn out to be inside the noise.
 
-**Bottom line:** install vLLM, serve a quantized 70B model on your two
-5090s, set `KV_CACHE_DTYPE = "fp8"`, leave everything else at its default.
-That's the same setup I'd ship.
+**Bottom line:** install vLLM 0.20+, serve an AWQ-int4 70B model, set
+`KV_CACHE_DTYPE = "fp8"`, leave everything else at its default. For R1 also
+set `MAX_MODEL_LEN = 16384`. That's the same setup I'd ship.
 
 ## What's different from autoresearch
 
