@@ -19,7 +19,7 @@ backwards compatibility with older builds.
 
 GPU_MEMORY_UTILIZATION: float = 0.85   # fraction of VRAM vLLM may claim
 MAX_NUM_SEQS: int = 64                 # max concurrent sequences in the scheduler
-MAX_MODEL_LEN: int = 16384             # raised for R1: reasoning traces routinely exceed 4k output tokens
+MAX_MODEL_LEN: int = 65536             # verify gpu-models consolidation: bump from 16384 to match the -fp8 preset variant
 KV_CACHE_DTYPE: str = "fp8"            # R1 iter 1: re-apply the Llama-audit champion change
 BLOCK_SIZE: int = 32                   # R1 iter 5b: test "less catastrophic with lower concurrency / longer outputs"
 
