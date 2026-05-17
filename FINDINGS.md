@@ -202,6 +202,78 @@ moved the needle.
   long-context p99 TTFT (1.5×), insufficient to flip the SLO-weighted
   aggregate.
 
+## Cross-model: DeepSeek-R1-Distill-Llama-70B (branch `r1/audit`)
+
+To test whether the Llama-3.3 findings generalize to a same-architecture model
+with a very different output-length distribution, we re-ran the audit on
+`casperhansen/deepseek-r1-distill-llama-70b-awq` (same author, same AWQ-int4
+quant family, same architecture as Llama 3.3 70B — but a reasoning-fine-tuned
+variant that emits long `<think>...</think>` traces before final answers).
+
+**Scaffolding changes** (commit `617af11`): `MAX_MODEL_LEN` raised from 8192
+to 16384 (reasoning traces need the room), and a new `reasoning` profile
+added to `BENCH_PROFILES` (5 math/logic prompts at `max_tokens=4096`,
+`concurrency=8`, throughput-only SLOs).
+
+### R1 noise floor (3-run variance probe on commit `b5561bb`)
+
+| profile      | mean ± σ          | CV%    | 2σ     |
+|--------------|-------------------|--------|--------|
+| interactive  | 349.10 ± 0.03     | 0.01%  | 0.06   |
+| coding       | 332.52 ± 0.09     | 0.03%  | 0.18   |
+| batch        | 329.93 ± 0.47     | 0.14%  | 0.94   |
+| long_context | 104.32 ± 0.84     | 0.81%  | 1.68   |
+| reasoning    | 220.31 ± **14.01**| **6.36%** | 28.02 |
+
+First four profiles are extremely tight, comparable to or better than Llama
+AWQ. **Reasoning is 80–400× noisier** than the others: only ~8 requests
+complete per 60 s window, so per-run sample noise dominates. Bumping
+reasoning duration or sample count is the obvious fix if this profile gets
+tuned heavily in future work.
+
+### R1 results
+
+| iter | commit    | change                           | result vs R1 baseline                  |
+|------|-----------|----------------------------------|----------------------------------------|
+| base | `617af11` | KV_CACHE_DTYPE=auto              | interactive 0.00 (TTFT 25.7 s), coding 329.46, batch 323.45, long_context 99.26, reasoning 190.31 |
+| 1    | `b5561bb` | **KV_CACHE_DTYPE=fp8**           | **WIN.** interactive recovers (TTFT 25.7 s → 0.75 s), coding +34σ, batch +14σ, long_context +6σ, reasoning +2.1σ |
+| 2    | `75a9da1` | MAX_NUM_BATCHED_TOKENS=16384     | rejected — interactive −144σ (raw −4.3, *worse* than Llama's −1.4) |
+| 5b   | `f776a94` | BLOCK_SIZE=32                    | rejected — batch −241σ, req/s 21.1 → 13.9 (−34%, basically identical to Llama's −35%) |
+
+### What transferred
+
+- **The headline (KV fp8 win) transfers cleanly.** Every R1 profile improves
+  past its 2σ threshold. Coding +0.9%, batch +2.0%, long_context +5.1%,
+  reasoning +15.8% (compared to Llama's +0.9% / +1.7% / +11% on the
+  overlapping profiles — close enough to be the same effect).
+- **Iter 2 and iter 5b stay rejected.** My pre-audit predictions ("iter 2
+  might flip on R1 because decode dominates"; "iter 5b might flip on R1
+  because lower concurrency") were both wrong.
+  - Iter 2: interactive regressed *more* on R1 than on Llama in raw terms
+    (−4.3 vs −1.4). Probable mechanism: R1 emits a `<think>` block even on
+    "interactive" prompts, so per-request output is bigger, and larger
+    prefill chunks contend more with the longer decode tails.
+  - Iter 5b: the batch *profile* fixes its own concurrency=64; swapping
+    the served model doesn't shift the prompt-size or concurrency
+    distribution that drives BLOCK_SIZE fragmentation, so the penalty is
+    invariant under the model change.
+
+### R1-specific findings
+
+- **Baseline interactive score was 0** because R1 under KV=auto is KV-starved
+  and queues requests under a 25 s TTFT cliff. The earlier framing "R1 isn't
+  a chat model" was partly wrong: with fp8 KV, R1's interactive p99 TTFT
+  drops to 0.75 s, Llama-comparable. R1 *can* serve interactive — it just
+  needs enough KV headroom.
+- **The reasoning profile is intrinsically noisy** under our current
+  parameters (concurrency=8, duration=60 s). Future iters touching
+  reasoning-specific behavior should bump duration or concurrency to get a
+  cleaner signal.
+- **Throughput characteristics are remarkably model-agnostic at this
+  quant/architecture.** R1's coding, batch, and long_context scores are
+  within ~1% of Llama's at iter 1, suggesting that scheduler-level tuning
+  results generalize across same-architecture model variants.
+
 ## Known issues
 
 - ~~Zombie vLLM workers escape teardown when run.py logs `status="crash"`.~~
