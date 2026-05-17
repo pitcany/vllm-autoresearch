@@ -44,7 +44,7 @@ TOP_P: float = 1.0
 # "vllm"      → use vLLM with the MODEL/QUANTIZATION below (AWQ, GPTQ, FP8, …)
 # "llama_cpp" → use llama-server with LLAMA_CPP_MODEL (a GGUF path)
 # The benchmark hits the same OpenAI-compatible endpoint either way.
-BACKEND: str = "vllm"
+BACKEND: str = "llama_cpp"
 
 # ---- llama.cpp knobs (only used when BACKEND == "llama_cpp") ---------------
 #
