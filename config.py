@@ -55,10 +55,44 @@ BENCH_SLO_INTER_TOKEN_MS: float = 100  # p99 inter-token target; over this, pena
 BENCH_SLO_TTFT_MS: float = 2000        # p95 time-to-first-token target
 
 # Workload profiles to evaluate.  Each profile has its own score.
-# Set ``concurrency_override`` to None to use BENCH_CONCURRENCY.
+#
+# SLO override semantics (per profile):
+#   - ``slo_inter_token_ms``: if None, no per-token latency penalty applies
+#     (use for throughput-bound profiles like batch).
+#   - ``slo_ttft_ms``: if None, no TTFT penalty applies (use for prefill-bound
+#     profiles like long_context where TTFT is dominated by prompt length, not
+#     by serving config).
+#   - If a key is absent, the global BENCH_SLO_* defaults are used.
 BENCH_PROFILES: tuple[dict, ...] = (
-    {"name": "interactive",  "path": "workload/interactive.jsonl",  "concurrency_override": 16},
-    {"name": "coding",       "path": "workload/coding.jsonl",       "concurrency_override": 16},
-    {"name": "batch",        "path": "workload/batch.jsonl",        "concurrency_override": 64},
-    {"name": "long_context", "path": "workload/long_context.jsonl", "concurrency_override": 4},
+    {
+        "name": "interactive",
+        "path": "workload/interactive.jsonl",
+        "concurrency_override": 16,
+        "slo_ttft_ms": 1000,
+        "slo_inter_token_ms": 80,
+    },
+    {
+        "name": "coding",
+        "path": "workload/coding.jsonl",
+        "concurrency_override": 16,
+        "slo_ttft_ms": 2000,
+        "slo_inter_token_ms": 100,
+    },
+    {
+        # Batch is throughput-only — neither TTFT nor per-token latency matters.
+        "name": "batch",
+        "path": "workload/batch.jsonl",
+        "concurrency_override": 64,
+        "slo_ttft_ms": None,
+        "slo_inter_token_ms": None,
+    },
+    {
+        # Long-context TTFT is dominated by prefill length, not by config —
+        # judge on output throughput + per-token cadence only.
+        "name": "long_context",
+        "path": "workload/long_context.jsonl",
+        "concurrency_override": 4,
+        "slo_ttft_ms": None,
+        "slo_inter_token_ms": 100,
+    },
 )

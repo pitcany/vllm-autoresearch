@@ -204,7 +204,12 @@ async def _fire_one(client: httpx.AsyncClient, prompt: dict) -> RequestStat:
 
 
 async def _run_profile(
-    name: str, prompts: list[dict], concurrency: int, duration_s: float
+    name: str,
+    prompts: list[dict],
+    concurrency: int,
+    duration_s: float,
+    slo_ttft_ms: float | None,
+    slo_inter_token_ms: float | None,
 ) -> ProfileResult:
     sem = asyncio.Semaphore(concurrency)
     stats: list[RequestStat] = []
@@ -278,9 +283,19 @@ async def _run_profile(
     total_tps = (output_tokens + input_tokens) / duration if duration > 0 else 0.0
     rps = completed / duration if duration > 0 else 0.0
 
-    inter_penalty = max(0.0, (it_p99 - config.BENCH_SLO_INTER_TOKEN_MS) / config.BENCH_SLO_INTER_TOKEN_MS) if it_p99 != float("inf") else 1.0
-    ttft_penalty  = max(0.0, (ttft_p95 - config.BENCH_SLO_TTFT_MS)      / config.BENCH_SLO_TTFT_MS)      if ttft_p95 != float("inf") else 1.0
-    score = out_tps * max(0.0, 1.0 - inter_penalty) * max(0.0, 1.0 - ttft_penalty)
+    # Per-profile SLOs: None means "this dimension does not gate the score".
+    # E.g. batch is throughput-only; long_context's TTFT is prefill-dominated.
+    if slo_inter_token_ms is None or it_p99 == float("inf"):
+        inter_factor = 1.0 if slo_inter_token_ms is None else 0.0
+    else:
+        inter_penalty = max(0.0, (it_p99 - slo_inter_token_ms) / slo_inter_token_ms)
+        inter_factor = max(0.0, 1.0 - inter_penalty)
+    if slo_ttft_ms is None or ttft_p95 == float("inf"):
+        ttft_factor = 1.0 if slo_ttft_ms is None else 0.0
+    else:
+        ttft_penalty = max(0.0, (ttft_p95 - slo_ttft_ms) / slo_ttft_ms)
+        ttft_factor = max(0.0, 1.0 - ttft_penalty)
+    score = out_tps * inter_factor * ttft_factor
 
     return ProfileResult(
         name=name,
@@ -316,7 +331,18 @@ def _config_snapshot() -> dict:
         "BENCH_CONCURRENCY", "BENCH_DURATION_SECONDS",
         "BENCH_SLO_INTER_TOKEN_MS", "BENCH_SLO_TTFT_MS",
     ]
-    return {k: getattr(config, k) for k in keys}
+    snap = {k: getattr(config, k) for k in keys}
+    # Profile-level SLO overrides materially change the score; include them.
+    snap["BENCH_PROFILES"] = [
+        {
+            "name": p["name"],
+            "concurrency": p.get("concurrency_override") or config.BENCH_CONCURRENCY,
+            "slo_ttft_ms": p["slo_ttft_ms"] if "slo_ttft_ms" in p else config.BENCH_SLO_TTFT_MS,
+            "slo_inter_token_ms": p["slo_inter_token_ms"] if "slo_inter_token_ms" in p else config.BENCH_SLO_INTER_TOKEN_MS,
+        }
+        for p in config.BENCH_PROFILES
+    ]
+    return snap
 
 
 def _config_hash(snapshot: dict) -> str:
@@ -340,7 +366,13 @@ def run() -> BenchReport:
             continue
         concurrency = prof.get("concurrency_override") or config.BENCH_CONCURRENCY
         duration = float(prof.get("duration_s") or config.BENCH_DURATION_SECONDS)
-        r = asyncio.run(_run_profile(prof["name"], prompts, concurrency, duration))
+        # If the profile dict has the key but it's None, "no SLO".
+        # If the key is absent, fall back to the global default.
+        slo_ttft = prof["slo_ttft_ms"] if "slo_ttft_ms" in prof else config.BENCH_SLO_TTFT_MS
+        slo_inter = prof["slo_inter_token_ms"] if "slo_inter_token_ms" in prof else config.BENCH_SLO_INTER_TOKEN_MS
+        r = asyncio.run(_run_profile(
+            prof["name"], prompts, concurrency, duration, slo_ttft, slo_inter,
+        ))
         results.append(r)
 
     snapshot = _config_snapshot()
