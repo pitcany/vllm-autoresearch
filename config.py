@@ -17,7 +17,7 @@ backwards compatibility with older builds.
 
 # ---- tunable knobs ---------------------------------------------------------
 
-GPU_MEMORY_UTILIZATION: float = 0.85   # fraction of VRAM vLLM may claim
+GPU_MEMORY_UTILIZATION: float = 0.92   # fraction of VRAM vLLM may claim
 MAX_NUM_SEQS: int = 64                 # max concurrent sequences in the scheduler
 MAX_MODEL_LEN: int = 8192              # max context window served (smaller = more KV headroom)
 KV_CACHE_DTYPE: str = "fp8"            # "auto" | "fp8" | "fp8_e5m2" | "fp8_e4m3" | … (auto = safest baseline)
