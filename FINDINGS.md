@@ -31,11 +31,21 @@ All deltas are 7–22σ — firm signal.
 |-----------|-------------------------------------|---------------------------------------|
 | `2c60e07` | `MAX_NUM_BATCHED_TOKENS = 16384`    | batch +5.9σ, interactive **−7.2σ** ✗ |
 | `60ac980` | `MAX_NUM_SEQS = 128`                | interactive **−13.8σ**, batch **−5.5σ** ✗ |
+| `e789ef7` | `GPU_MEMORY_UTILIZATION = 0.92`     | first three profiles +2.3 to +6.8σ, **long_context −126σ catastrophic crash** ✗ |
 
 Larger prefill chunks improved batch throughput at the cost of single-stream
 inter-token latency. The 64-sequence concurrency ceiling was not the
 bottleneck; raising it hurt both latency and throughput, indicating effective
 batch is gated upstream (chunked-prefill / decode kernel sweet spot).
+
+Iter 4 is the most informative failure: bumping `GPU_MEMORY_UTILIZATION` from
+0.85 → 0.92 *did* lift interactive/coding/batch by small but real margins
+(+2.3 to +6.8σ), but vLLM crashed during the long_context profile and the
+benchmark logged ~195 k connection failures in 60 s. The 0.85 default is not
+slack — it's load-bearing headroom for prefill activation buffers on 7 k-token
+prompts. **Conclusion: 0.85 is the headroom frontier on 2× 32 GB; pushing
+higher requires either smaller `MAX_MODEL_LEN` or accepting an OOM on long
+prompts.**
 
 ## Cross-stack: weight quantization probes
 
@@ -85,6 +95,59 @@ thermal/clock sensitivity in the new sm_120 path, and less-mature inductor
 caching. Anyone tuning the fp4 stack must run multiple iterations to
 distinguish signal — single-shot tuning is unreliable.
 
+## Cross-backend: llama.cpp Q4_K_M (commit `0a1ac00`, branch `backend/llama-cpp`)
+
+Single benchmark run, llama.cpp build 9127 (a9883db8e), Q4_K_M GGUF (40 GB),
+`--flash-attn on`, `--cont-batching`, `--kv-unified` (shared KV pool, the
+fairer paged-attention analog), `--parallel 64`, `--ctx-size 32768`. Same
+OpenAI-compatible benchmark hits either stack.
+
+**Output tok/s — vLLM wins every profile:**
+
+| profile      | vLLM iter 1 | llama.cpp | vLLM advantage |
+|--------------|-------------|-----------|----------------|
+| interactive  | 350         | 273       | +28%           |
+| coding       | 329         | 240       | +37%           |
+| batch        | 328         | 172       | **+90%**       |
+| long_context | 101         | 12        | **+742%**      |
+
+**p99 TTFT — vLLM wins three of four:**
+
+| profile      | vLLM      | llama.cpp | winner            |
+|--------------|-----------|-----------|-------------------|
+| interactive  | 730 ms    | 1820 ms   | vLLM 2.5×         |
+| coding       | 970 ms    | 3213 ms   | vLLM 3.3×         |
+| batch        | 1606 ms   | 8271 ms   | vLLM 5.1×         |
+| long_context | 18332 ms  | 11954 ms  | **llama.cpp 1.5×** |
+
+**p99 inter-token — vLLM wins all four, often by huge margins:**
+
+| profile      | vLLM    | llama.cpp | winner       |
+|--------------|---------|-----------|--------------|
+| interactive  | 66 ms   | 394 ms    | vLLM 6×      |
+| coding       | 55 ms   | 67 ms     | vLLM 1.2×    |
+| batch        | 273 ms  | 1021 ms   | vLLM 3.7×    |
+| long_context | 56 ms   | 6203 ms   | **vLLM 110×** |
+
+**SLO-gated scores:** vLLM 350.70 / 328.84 / 327.12 / 100.87 vs llama.cpp
+0.00 / 94.52 / 172.27 / 0.00. Two profiles get zeroed by SLO violations
+(interactive p99 TTFT 1820 > 1000 ms and ITL 394 > 80 ms; long_context p99
+ITL 6203 ms ≫ 100 ms target). Completed requests in 60 s: 100 / 51 / 1387
+/ 80 (vLLM) vs 79 / 40 / 747 / 13 (llama.cpp) — batch lost half capacity,
+long_context lost 84%.
+
+**Lone llama.cpp win** is long-context TTFT (1.5× faster prefill), suggesting
+the GGUF prefill kernel is genuinely competitive on prefill-dominant
+workloads. But the kv-unified pool seems to thrash under 4–7 k prompts at
+parallel=64 — decode collapses to p99 6203 ms ITL, killing the score.
+Tunable in principle (lower parallel, larger ctx-size, or non-kv-unified
+mode), but the dominant pattern across the other three profiles makes
+further llama.cpp tuning low-priority.
+
+**Conclusion: no reason to consider llama.cpp on this stack.** vLLM
+AWQ + KV fp8 dominates GGUF Q4_K_M on every metric except a single
+prefill-only TTFT data point that doesn't show up in the SLO-weighted score.
+
 ## Recommendations
 
 1. **Ship `eba2631` (AWQ + KV fp8)** as the production config — best SLO-
@@ -102,7 +165,21 @@ distinguish signal — single-shot tuning is unreliable.
 
 - Will vLLM ≥0.21 improve the NVFP4 decode kernel? If it closes the ITL gap
   while keeping the prefill win, NVFP4 becomes the champion stack outright.
-- Would `GPU_MEMORY_UTILIZATION = 0.92` (vs current 0.85) gain meaningful KV
-  block headroom on AWQ trunk? Untested — low risk, high information value.
-- Cross-backend comparison (llama.cpp Q4_K_M with `--kv-unified`) was wired
-  up but not benchmarked at parity. Worth a single fair-comparison run.
+- ~~Would `GPU_MEMORY_UTILIZATION = 0.92` gain meaningful headroom on AWQ
+  trunk?~~ **Answered (iter 4, `e789ef7`):** no — pushing past 0.85 OOMs on
+  long_context. The 0.85 default is the headroom frontier on 2× 32 GB.
+- ~~Cross-backend comparison (llama.cpp Q4_K_M with `--kv-unified`).~~
+  **Answered (`0a1ac00`):** vLLM AWQ wins every output-throughput,
+  inter-token, and SLO-gated profile by 28–742%. Sole llama.cpp win is
+  long-context p99 TTFT (1.5×), insufficient to flip the SLO-weighted
+  aggregate.
+
+## Known issues
+
+- **Zombie vLLM workers escape teardown when run.py logs `status="crash"`.**
+  Workers rename themselves to `VLLM::Worker_TP{0,1}` after launch, which
+  evades the launcher's case-sensitive `grep vllm` cleanup. When iter 4
+  crashed mid-benchmark the workers kept holding ~30 GB on each GPU, and the
+  next backend launch (llama.cpp) immediately OOMed. Manual fix:
+  `nvidia-smi --query-compute-apps=pid` → `kill -9 <pid>`. A proper fix
+  would be to either kill by parent-pid tree or grep case-insensitively.
