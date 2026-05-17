@@ -80,8 +80,8 @@ LLAMA_CPP_EXTRA_ARGS: tuple[str, ...] = ()   # escape hatch for one-off flags
 
 # ---- locked constants (do not modify) --------------------------------------
 
-MODEL: str = "casperhansen/llama-3.3-70b-instruct-awq"
-QUANTIZATION: str = "awq_marlin"
+MODEL: str = "/home/yannik/AI/models/store/safetensors/RedHatAI/Llama-3.3-70B-Instruct-NVFP4"
+QUANTIZATION: str = "compressed-tensors"
 TENSOR_PARALLEL_SIZE: int = 2
 HOST: str = "127.0.0.1"
 PORT: int = 8003
