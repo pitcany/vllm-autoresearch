@@ -2,7 +2,7 @@
 
 The Blackwell GPUs in a pair of 5090s give you 64 GB total VRAM and a brand-new FP4/FP8 tensor-core path. With Llama 3.3 70B quantized to AWQ-int4, you can fit the model with KV-cache headroom, and vLLM 0.20 will serve it across the pair via tensor parallelism. The interesting question — given all of that — is which of the dozens of knobs in `vllm serve --help` actually matter.
 
-I spent a couple of evenings turning that question into measurements. Short version: one change made a real difference, three "improvements" were silently regressions, and two of the more exotic quantization paths either crashed or only helped one workload. Here's what I learned.
+I spent a couple of evenings turning that question into measurements. Short version: **one change made a real difference, every other config knob I tested was either already at its optimum, removed in the V1 scheduler rewrite, or actively a regression.** Two of the more exotic quantization paths either crashed or only helped one workload. Here's what I learned.
 
 ## The first hour was harness, not tuning
 
@@ -14,9 +14,29 @@ None of these would have surfaced as bugs. They would have surfaced as "the tuni
 
 Switching `KV_CACHE_DTYPE` from `"auto"` (fp16) to `"fp8"` halves the memory the attention cache consumes, freeing room for more concurrent requests and longer effective contexts. Every profile improved by 7σ to 22σ — far past the noise floor, on the order of +1 to +11 % on the SLO-weighted scores. The biggest win was long-context (+11 %), which is unsurprising in retrospect: KV is the bottleneck the moment prompts grow.
 
-## Three "obvious" tuning ideas were silent regressions
+That's the entire affirmative finding.
 
-Bigger prefill chunks (`MAX_NUM_BATCHED_TOKENS=16384`) helped batch by +6σ but killed interactive latency by −7σ. Doubling the concurrency ceiling (`MAX_NUM_SEQS=128`) hurt both latency *and* throughput at once — the 64-sequence ceiling wasn't the bottleneck. Pushing `GPU_MEMORY_UTILIZATION` from 0.85 to 0.92 lifted the first three profiles by +2 to +7σ but catastrophically OOM'd on long-context prefill. That last one was the most instructive: the 0.85 default isn't slack, it's load-bearing headroom for prefill activation buffers, and the only way to find that out was to crash into it.
+## Every other scheduler knob I touched was already at its optimum (or worse)
+
+I tried five other plausible changes. None landed.
+
+- **`MAX_NUM_BATCHED_TOKENS = 16384`** (up from 8192): helped batch by +6σ, killed interactive latency by −7σ. Bigger prefill chunks make decode wait longer.
+- **`MAX_NUM_SEQS = 128`** (up from 64): hurt both latency *and* throughput. The 64-sequence ceiling wasn't the bottleneck; raising it created scheduling contention.
+- **`GPU_MEMORY_UTILIZATION = 0.92`** (up from 0.85): lifted the first three profiles by +2 to +7σ, then OOM-crashed on long-context prefill — 195,000 errored requests in 60 seconds. The 0.85 default isn't slack; it's load-bearing headroom for prefill activation buffers, and the only way to find that out was to crash into it.
+- **`BLOCK_SIZE = 32`** (up from 16): batch throughput collapsed by 35 % (−1441σ). Larger paged-attention blocks mean more internal fragmentation, and with 64 concurrent short-prompt batch requests, each block-claim wastes more KV than 16-slot blocks did. Block size *is* a high-leverage knob; the vLLM default just happens to sit at the optimum for our prompt-size distribution.
+- **`MAX_NUM_PARTIAL_PREFILLS = 4`** (up from 1): didn't even start. `NotImplementedError: Concurrent Partial Prefill is not supported.` Which leads to…
+
+## Many of the historically-quoted vLLM levers don't exist anymore
+
+vLLM 0.20 defaults to the V1 scheduler, which is a substantial rewrite of V0. A surprising amount of tuning advice on the internet references V0 knobs that have been quietly removed or stubbed out:
+
+- `--num-scheduler-steps` (multi-step decode, historically *the* throughput lever): gone.
+- `--max-num-partial-prefills > 1`: accepted as an argument, raises `NotImplementedError` at startup.
+- `--swap-space`, `--scheduler-delay-factor`: silently dropped by version-aware launchers, no-ops on V1.
+
+The realistic V1 tuning surface for a single-model serving workload is roughly seven knobs: `GPU_MEMORY_UTILIZATION`, `MAX_NUM_SEQS`, `MAX_MODEL_LEN`, `KV_CACHE_DTYPE`, `BLOCK_SIZE`, `MAX_NUM_BATCHED_TOKENS`, plus the chunked-prefill / prefix-caching toggles. I tested five of them. Four were already at their optimum. One mattered.
+
+That's the second affirmative finding, and it's almost more useful than the first: **the V1 vLLM default config is good.** Most tuning effort on V1 is just noise around a well-tuned default.
 
 ## The exotic quantization paths were a mixed bag
 
@@ -32,6 +52,11 @@ Same GGUF (Q4_K_M), `--kv-unified` (the fairer paged-attention analog), parallel
 
 ## The takeaway
 
-The value of the work wasn't the one knob that mattered. It was the noise floor and the rejection rule. Once you've measured your noise floor properly — a 3-run variance probe on a frozen config — most "improvements" are obviously not improvements, and the few that are jump out as 10σ-plus signal. Without it I would have shipped one of the rejected configs and felt good about it.
+The value of the work wasn't the one knob that mattered. It was the noise floor and the rejection rule. Once you've measured your noise floor properly — a 3-run variance probe on a frozen config — most "improvements" are obviously not improvements, and the few that are jump out as 10σ-plus signal.
 
-Most vLLM tuning posts on the internet are doing exactly that.
+Two things I now believe more strongly than I did when I started:
+
+1. **The V1 vLLM default config is good.** Most tuning effort spent on this stack is rediscovering that fact. The single change worth making for this hardware + model class is `KV_CACHE_DTYPE = "fp8"`.
+2. **A lot of published vLLM tuning advice predates V1.** Before reaching for a knob you read about in 2023, check that it still exists in the binary you're running. Several historically-large levers (multi-step scheduling, concurrent partial prefill) are gone or stubbed.
+
+The audit was worth doing not because it found a magic config, but because it produced a defensible "no, the default really is the default" for nearly everything else.
