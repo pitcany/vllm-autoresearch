@@ -1,0 +1,20 @@
+{"profile": "interactive", "synthetic": true, "prompt": "Explain the difference between TCP and UDP in two paragraphs.", "max_tokens": 256}
+{"profile": "interactive", "synthetic": true, "prompt": "Summarize the plot of Hamlet in five sentences.", "max_tokens": 200}
+{"profile": "interactive", "synthetic": true, "prompt": "What are the main causes of inflation, and how do central banks respond?", "max_tokens": 256}
+{"profile": "interactive", "synthetic": true, "prompt": "Translate this sentence to Japanese: 'The weather is nice today, let's go for a walk.'", "max_tokens": 100}
+{"profile": "interactive", "synthetic": true, "prompt": "List ten reasons people give for not exercising regularly, and a counterpoint to each.", "max_tokens": 400}
+{"profile": "interactive", "synthetic": true, "prompt": "Compare and contrast object-oriented and functional programming paradigms.", "max_tokens": 300}
+{"profile": "interactive", "synthetic": true, "prompt": "Draft a polite email declining a meeting invitation due to a scheduling conflict.", "max_tokens": 200}
+{"profile": "interactive", "synthetic": true, "prompt": "What is photosynthesis? Explain it like I'm twelve.", "max_tokens": 200}
+{"profile": "interactive", "synthetic": true, "prompt": "What were the main provisions of the Treaty of Versailles?", "max_tokens": 300}
+{"profile": "interactive", "synthetic": true, "prompt": "Explain the concept of recursion using the tower of Hanoi as an example.", "max_tokens": 300}
+{"profile": "interactive", "synthetic": true, "prompt": "What is the time complexity of quicksort, and when does the worst case occur?", "max_tokens": 200}
+{"profile": "interactive", "synthetic": true, "prompt": "Write a haiku about autumn leaves.", "max_tokens": 60}
+{"profile": "interactive", "synthetic": true, "prompt": "Explain Bayes' theorem with a medical-test example.", "max_tokens": 300}
+{"profile": "interactive", "synthetic": true, "prompt": "What is the Monty Hall problem and why is the counterintuitive answer correct?", "max_tokens": 300}
+{"profile": "interactive", "synthetic": true, "prompt": "Recommend three books for someone interested in the history of mathematics.", "max_tokens": 250}
+{"profile": "interactive", "synthetic": true, "prompt": "What causes the seasons on Earth?", "max_tokens": 250}
+{"profile": "interactive", "synthetic": true, "prompt": "How does HTTPS protect data in transit?", "max_tokens": 300}
+{"profile": "interactive", "synthetic": true, "prompt": "What is the difference between a stock and a bond from an investor's perspective?", "max_tokens": 250}
+{"profile": "interactive", "synthetic": true, "prompt": "Summarize the key arguments in Plato's Allegory of the Cave.", "max_tokens": 300}
+{"profile": "interactive", "synthetic": true, "prompt": "What's the difference between mitosis and meiosis?", "max_tokens": 300}

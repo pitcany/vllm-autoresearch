@@ -1,0 +1,20 @@
+{"profile": "batch", "synthetic": true, "prompt": "Classify the sentiment of: 'The product arrived broken and customer service was unhelpful.' Answer with one of POSITIVE/NEGATIVE/NEUTRAL only.", "max_tokens": 8}
+{"profile": "batch", "synthetic": true, "prompt": "Classify the sentiment of: 'Best purchase I made all year.' Answer with one of POSITIVE/NEGATIVE/NEUTRAL only.", "max_tokens": 8}
+{"profile": "batch", "synthetic": true, "prompt": "Classify the sentiment of: 'It works as described.' Answer with one of POSITIVE/NEGATIVE/NEUTRAL only.", "max_tokens": 8}
+{"profile": "batch", "synthetic": true, "prompt": "Extract the company name from: 'Acme Robotics announced Q3 earnings of $2.1B.' Reply with only the name.", "max_tokens": 12}
+{"profile": "batch", "synthetic": true, "prompt": "Extract the company name from: 'Northwind Logistics signed a deal with PortCo.' Reply with only the name.", "max_tokens": 12}
+{"profile": "batch", "synthetic": true, "prompt": "Convert to lowercase and remove punctuation: 'Hello, World!' Reply with only the result.", "max_tokens": 16}
+{"profile": "batch", "synthetic": true, "prompt": "Summarize in exactly one sentence: 'The quarterly report cites supply-chain disruptions and rising input costs as the main drags on margin.'", "max_tokens": 60}
+{"profile": "batch", "synthetic": true, "prompt": "Summarize in exactly one sentence: 'A new lithium-ion variant is reported to improve cycle life by 40%, though at higher manufacturing cost.'", "max_tokens": 60}
+{"profile": "batch", "synthetic": true, "prompt": "Translate to French, reply with only the translation: 'Where is the train station?'", "max_tokens": 24}
+{"profile": "batch", "synthetic": true, "prompt": "Translate to French, reply with only the translation: 'I would like a coffee, please.'", "max_tokens": 24}
+{"profile": "batch", "synthetic": true, "prompt": "Is the following SQL safe from injection? Reply YES or NO only.\n\nSELECT * FROM users WHERE id = '\" + user_input + \"';", "max_tokens": 4}
+{"profile": "batch", "synthetic": true, "prompt": "Is the following SQL safe from injection? Reply YES or NO only.\n\nSELECT * FROM users WHERE id = ?;", "max_tokens": 4}
+{"profile": "batch", "synthetic": true, "prompt": "Tag the part-of-speech of the word 'run' in: 'I went for a run this morning.' Reply with only the POS tag.", "max_tokens": 8}
+{"profile": "batch", "synthetic": true, "prompt": "Tag the part-of-speech of the word 'run' in: 'I run every morning.' Reply with only the POS tag.", "max_tokens": 8}
+{"profile": "batch", "synthetic": true, "prompt": "Output JSON {\"valid\": true|false} for the input: 'foo@bar.com'", "max_tokens": 24}
+{"profile": "batch", "synthetic": true, "prompt": "Output JSON {\"valid\": true|false} for the input: 'not-an-email'", "max_tokens": 24}
+{"profile": "batch", "synthetic": true, "prompt": "Reply with only YES or NO: does the text 'The cat sat on the mat.' contain an animal?", "max_tokens": 4}
+{"profile": "batch", "synthetic": true, "prompt": "Reply with only YES or NO: does the text 'The painting hung on the wall.' contain an animal?", "max_tokens": 4}
+{"profile": "batch", "synthetic": true, "prompt": "Output the language code (ISO 639-1) for: 'Bonjour le monde.' Reply with only the code.", "max_tokens": 4}
+{"profile": "batch", "synthetic": true, "prompt": "Output the language code (ISO 639-1) for: 'Hola mundo.' Reply with only the code.", "max_tokens": 4}
