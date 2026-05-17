@@ -55,12 +55,17 @@ LLAMA_CPP_BIN: str = "/home/yannik/AI/llama.cpp/build/bin/llama-server"
 LLAMA_CPP_MODEL: str = "/home/yannik/AI/models/store/gguf/bartowski/Llama-3.3-70B-Instruct-GGUF/Llama-3.3-70B-Instruct-Q4_K_M.gguf"
 
 LLAMA_CPP_N_GPU_LAYERS: int = 999        # 999 = offload everything we can
-# WARNING on ctx-size: llama-server pre-allocates this much KV and divides it
-# across `--parallel` slots.  Per-slot context = LLAMA_CPP_CTX_SIZE //
-# LLAMA_CPP_PARALLEL.  Set CTX_SIZE >= MAX_MODEL_LEN * PARALLEL or longer
-# prompts will hit HTTP 400.  vLLM's paged attention has no equivalent limit.
-LLAMA_CPP_CTX_SIZE: int = 32768          # total KV budget across all slots
-LLAMA_CPP_PARALLEL: int = 4              # concurrent sequences; per-slot ctx = CTX_SIZE / PARALLEL
+# ctx-size + parallel + kv-unified interact:
+#   * Default (kv-unified=False): KV is pre-divided per slot.  Per-slot ctx
+#     = LLAMA_CPP_CTX_SIZE // LLAMA_CPP_PARALLEL.  Long prompts that exceed
+#     the per-slot cap return HTTP 400.
+#   * kv-unified=True: KV is a single shared pool (paged-attention-ish).
+#     Slots draw from the pool dynamically; you can run many concurrent
+#     sequences as long as the *sum* of their KV fits in CTX_SIZE.
+# Use kv-unified for a fairer comparison against vLLM's paged attention.
+LLAMA_CPP_CTX_SIZE: int = 32768          # total KV budget (shared if kv-unified)
+LLAMA_CPP_PARALLEL: int = 64             # max concurrent sequences
+LLAMA_CPP_KV_UNIFIED: bool = True        # shared KV pool (vLLM-ish); False = pre-divided
 LLAMA_CPP_BATCH_SIZE: int = 2048         # logical batch
 LLAMA_CPP_UBATCH_SIZE: int = 512         # physical/micro batch (matters for prefill speed)
 LLAMA_CPP_TENSOR_SPLIT: str = "1,1"      # split across both 5090s

@@ -106,6 +106,10 @@ def _build_command(info: "launch_vllm.LaunchInfo", binary: str) -> list[str]:
     base += ["--flash-attn", "on" if config.LLAMA_CPP_FLASH_ATTN else "off"]
     if config.LLAMA_CPP_CONT_BATCHING:
         base.append("--cont-batching")
+    # --kv-unified turns the KV cache into a single shared pool across slots
+    # (paged-attention-like). Without it, ctx-size is pre-divided per slot.
+    if getattr(config, "LLAMA_CPP_KV_UNIFIED", False):
+        base.append("--kv-unified")
     if config.LLAMA_CPP_NO_MMAP:
         base.append("--no-mmap")
     if config.LLAMA_CPP_MLOCK:

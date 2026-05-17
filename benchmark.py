@@ -339,6 +339,7 @@ def _config_snapshot() -> dict:
             "LLAMA_CPP_TENSOR_SPLIT", "LLAMA_CPP_MAIN_GPU",
             "LLAMA_CPP_CACHE_TYPE_K", "LLAMA_CPP_CACHE_TYPE_V",
             "LLAMA_CPP_FLASH_ATTN", "LLAMA_CPP_CONT_BATCHING",
+            "LLAMA_CPP_KV_UNIFIED",
             "LLAMA_CPP_NO_MMAP", "LLAMA_CPP_MLOCK", "LLAMA_CPP_EXTRA_ARGS",
         ]
     snap = {k: getattr(config, k) for k in keys}
