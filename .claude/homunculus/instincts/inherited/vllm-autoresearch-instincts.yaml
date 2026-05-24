@@ -1,0 +1,504 @@
+# Instincts generated from https://github.com/pitcany/vllm-autoresearch
+# Generated: 2026-05-17T09:42:32.980Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: vllm-autoresearch-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Commit Length
+
+## Action
+
+Write moderate-length commit messages (~70 characters)
+
+## Evidence
+
+- Average commit message length: 70 chars
+- Based on 17 commits
+
+---
+id: vllm-autoresearch-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Naming Files
+
+## Action
+
+Use camelCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: camelCase
+
+---
+id: vllm-autoresearch-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: vllm-autoresearch-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: vllm-autoresearch-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: vllm-autoresearch-workflow-config-parameter-tuning-iteration
+trigger: "when doing config parameter tuning iteration"
+confidence: 0.65
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Workflow Config Parameter Tuning Iteration
+
+## Action
+
+Follow the config-parameter-tuning-iteration workflow:
+1. Edit config.py to adjust relevant parameters (e.g., KV_CACHE_DTYPE, MAX_NUM_BATCHED_TOKENS, MAX_NUM_SEQS).
+2. Commit with a message indicating the iteration and rationale.
+3. Optionally, revert previous iterations if results are unsatisfactory.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~3x per month
+- Files: config.py
+
+---
+id: vllm-autoresearch-workflow-backend-support-extension
+trigger: "when doing backend support extension"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Workflow Backend Support Extension
+
+## Action
+
+Follow the backend-support-extension workflow:
+1. Add or modify launcher script for the new backend (e.g., launch_llama_cpp.py).
+2. Update config.py to add backend-specific knobs and selection logic.
+3. Update run.py to dispatch based on selected backend.
+4. Update benchmark.py or other relevant scripts if needed.
+5. Update documentation (program.md) to describe new backend setup and usage.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: launch_llama_cpp.py, config.py, run.py
+
+---
+id: vllm-autoresearch-workflow-harness-launcher-improvement
+trigger: "when doing harness launcher improvement"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Workflow Harness Launcher Improvement
+
+## Action
+
+Follow the harness-launcher-improvement workflow:
+1. Edit launch_vllm.py and/or launch_llama_cpp.py to improve startup checks, environment variables, or teardown logic.
+2. Edit run.py to improve signal handling or process lifecycle.
+3. Optionally, update related documentation.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: launch_vllm.py, launch_llama_cpp.py, run.py
+
+---
+id: vllm-autoresearch-workflow-per-profile-benchmarking-enhancement
+trigger: "when doing per profile benchmarking enhancement"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Workflow Per Profile Benchmarking Enhancement
+
+## Action
+
+Follow the per-profile-benchmarking-enhancement workflow:
+1. Edit benchmark.py to add or refine per-profile metrics/SLO logic.
+2. Edit config.py to support per-profile configuration.
+3. Edit run.py to record/report new metrics.
+4. Update or add workload/*.jsonl files if new profiles or prompt sets are needed.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: benchmark.py, config.py, run.py
+
+---
+id: vllm-autoresearch-workflow-documentation-update-after-feature-or-change
+trigger: "when doing documentation update after feature or change"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Workflow Documentation Update After Feature Or Change
+
+## Action
+
+Follow the documentation-update-after-feature-or-change workflow:
+1. Edit relevant documentation files to describe the new feature, workflow, or findings.
+2. Commit with a message summarizing the documentation update.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: README.md, program.md, FINDINGS.md
+
+---
+id: vllm-autoresearch-instinct-file-naming
+trigger: "When creating or renaming a Python file"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct File Naming
+
+## Action
+
+Use camelCase for file names
+
+## Evidence
+
+- Pattern in namingConventions.files
+- Observed in launch_llama_cpp.py, launch_vllm.py
+
+---
+id: vllm-autoresearch-instinct-function-naming
+trigger: "When defining a function"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Function Naming
+
+## Action
+
+Use camelCase for function names
+
+## Evidence
+
+- Pattern in namingConventions.functions
+
+---
+id: vllm-autoresearch-instinct-class-naming
+trigger: "When defining a class"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Class Naming
+
+## Action
+
+Use PascalCase for class names
+
+## Evidence
+
+- Pattern in namingConventions.classes
+
+---
+id: vllm-autoresearch-instinct-constant-naming
+trigger: "When defining a constant"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Constant Naming
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for constant names
+
+## Evidence
+
+- Pattern in namingConventions.constants
+- Seen in config.py (e.g., KV_CACHE_DTYPE)
+
+---
+id: vllm-autoresearch-instinct-relative-imports
+trigger: "When importing modules within the package"
+confidence: 0.85
+domain: code-style
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Relative Imports
+
+## Action
+
+Use relative imports
+
+## Evidence
+
+- Pattern in importStyle
+- Seen in various .py files
+
+---
+id: vllm-autoresearch-instinct-named-exports
+trigger: "When exporting functions or classes from a module"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Named Exports
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in exportStyle
+
+---
+id: vllm-autoresearch-instinct-test-location
+trigger: "When adding or updating tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Test Location
+
+## Action
+
+Place tests in a separate test folder
+
+## Evidence
+
+- Pattern in architecture.testLocation
+
+---
+id: vllm-autoresearch-instinct-git-commit-prefix
+trigger: "When writing a commit message"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Git Commit Prefix
+
+## Action
+
+Start the message with a prefix indicating the type of change (e.g., feat, fix, docs, refactor, bench, baseline, config, harness, iter1/2/3, revert)
+
+## Evidence
+
+- Pattern in commits.prefixes
+- Seen in commit examples
+
+---
+id: vllm-autoresearch-instinct-git-commit-length
+trigger: "When writing a commit message"
+confidence: 0.8
+domain: git
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Git Commit Length
+
+## Action
+
+Keep the commit message concise (~70 characters on average)
+
+## Evidence
+
+- Pattern in commits.averageLength
+- Seen in commit examples
+
+---
+id: vllm-autoresearch-instinct-tuning-iteration
+trigger: "When a new tuning experiment is needed or a previous config change needs to be reverted"
+confidence: 0.95
+domain: workflow
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Tuning Iteration
+
+## Action
+
+Edit config.py parameters, commit with an iterN or revert prefix and rationale
+
+## Evidence
+
+- Workflow: config-parameter-tuning-iteration
+- Seen in commit: baseline: KV_CACHE_DTYPE=auto for first reproducible run on Blackwell
+
+---
+id: vllm-autoresearch-instinct-backend-extension
+trigger: "When support for a new backend is needed"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Backend Extension
+
+## Action
+
+Add/modify launcher script, update config.py, run.py, benchmark.py, and program.md to support and document the new backend
+
+## Evidence
+
+- Workflow: backend-support-extension
+- Seen in commit: feat: llama.cpp backend for GGUF ↔ AWQ cross-stack comparison
+
+---
+id: vllm-autoresearch-instinct-launcher-improvement
+trigger: "When process management, signal handling, or environment setup needs improvement in the harness"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Launcher Improvement
+
+## Action
+
+Refactor launch_vllm.py, launch_llama_cpp.py, and run.py for robustness; optionally update docs
+
+## Evidence
+
+- Workflow: harness-launcher-improvement
+- Seen in commit: harness: port pre-flight + signal teardown, fix silent leak on SIGTERM
+
+---
+id: vllm-autoresearch-instinct-benchmarking-enhancement
+trigger: "When per-profile benchmarking or SLO/reporting improvements are needed"
+confidence: 0.85
+domain: workflow
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Benchmarking Enhancement
+
+## Action
+
+Edit benchmark.py, config.py, run.py, and workload/*.jsonl to refine metrics and profiles
+
+## Evidence
+
+- Workflow: per-profile-benchmarking-enhancement
+- Seen in commit: bench: per-profile SLOs; batch is throughput-only
+
+---
+id: vllm-autoresearch-instinct-docs-update
+trigger: "When a new feature, backend, or significant experiment is added/changed"
+confidence: 0.85
+domain: workflow
+source: repo-analysis
+source_repo: pitcany/vllm-autoresearch
+---
+
+# Vllm Autoresearch Instinct Docs Update
+
+## Action
+
+Update README.md, program.md, and/or FINDINGS.md to document the change
+
+## Evidence
+
+- Workflow: documentation-update-after-feature-or-change
+- Seen in commit: docs: program.md llama.cpp setup notes + correct python invocation
+
